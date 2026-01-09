@@ -1,0 +1,102 @@
+/**
+ * CLAWD OS1 - Layout Styles
+ */
+
+@layer layout {
+  /* Main app container */
+  .app-container {
+    height: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding: var(--space-xl) var(--space-2xl);
+    overflow: hidden;
+  }
+
+  /* Header layout */
+  .app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    animation: fade-in 1s ease forwards;
+  }
+
+  /* Main content area */
+  .app-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-lg);
+    gap: var(--space-2xl);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* Voice cards container */
+  .voice-cards-container {
+    display: flex;
+    gap: var(--space-4xl);
+    align-items: flex-end;
+  }
+
+  /* Footer positioning */
+  .app-footer {
+    position: absolute;
+    bottom: var(--space-2xl);
+    right: var(--space-3xl);
+    text-align: right;
+    animation: fade-in 1s ease forwards;
+    animation-delay: 1.2s;
+    opacity: 0;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 700px) {
+    .app-container {
+      padding: var(--space-lg) var(--space-xl);
+    }
+
+    .voice-cards-container {
+      gap: var(--space-2xl);
+    }
+
+    .app-main {
+      gap: var(--space-xl);
+    }
+
+    .app-footer {
+      position: relative;
+      bottom: auto;
+      right: auto;
+      text-align: center;
+      padding: var(--space-lg) 0;
+    }
+  }
+
+  @media (max-height: 650px) {
+    .app-container {
+      padding: var(--space-md) var(--space-xl);
+    }
+
+    .app-main {
+      gap: var(--space-lg);
+    }
+
+    .app-footer {
+      position: relative;
+      bottom: auto;
+      right: auto;
+      text-align: center;
+      padding: var(--space-sm) 0;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .voice-cards-container {
+      gap: var(--space-xl);
+    }
+  }
+}

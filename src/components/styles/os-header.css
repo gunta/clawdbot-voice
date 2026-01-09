@@ -1,0 +1,36 @@
+/* OS Header Component Styles */
+
+:host {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-system, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: var(--font-size-xs, 0.75rem);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-white-faint, rgba(255, 255, 255, 0.4));
+  animation: fade-in 1s ease forwards;
+}
+
+.badge {
+  border: 1px solid currentColor;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.badge:hover {
+  border-color: var(--color-white-soft, rgba(255, 255, 255, 0.85));
+  color: var(--color-white-soft, rgba(255, 255, 255, 0.85));
+}
+
+.clock {
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}

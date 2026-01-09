@@ -1,0 +1,66 @@
+/**
+ * CLAWD OS1 - Global Component Styles
+ * Styles for slotted content and shared component patterns
+ */
+
+@layer components {
+  /* Line drawing animation for SVG paths */
+  .line-draw {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: draw-line var(--duration-draw, 2s) ease forwards;
+  }
+
+  /* Figure SVG base styles */
+  .figure-svg {
+    width: 100%;
+    height: 100%;
+    color: var(--color-white, #FFFFFF);
+    transition: transform 0.4s ease, filter 0.4s ease;
+  }
+
+  .figure-svg path,
+  .figure-svg ellipse,
+  .figure-svg circle {
+    transition: stroke-width 0.3s ease, filter 0.3s ease;
+  }
+
+  /* Hover state line flow animation */
+  voice-card:hover .line-draw {
+    stroke-dasharray: 8 4;
+    animation: line-flow 1s linear infinite;
+  }
+
+  /* Staggered hover animations for each path */
+  voice-card:hover .line-draw:nth-child(1) { animation-duration: 0.8s; }
+  voice-card:hover .line-draw:nth-child(2) { animation-duration: 1.1s; animation-direction: reverse; }
+  voice-card:hover .line-draw:nth-child(3) { animation-duration: 0.9s; }
+  voice-card:hover .line-draw:nth-child(4) { animation-duration: 1.2s; animation-direction: reverse; }
+  voice-card:hover .line-draw:nth-child(5) { animation-duration: 1s; }
+  voice-card:hover .line-draw:nth-child(6) { animation-duration: 0.85s; animation-direction: reverse; }
+  voice-card:hover .line-draw:nth-child(7) { animation-duration: 1.15s; }
+  voice-card:hover .line-draw:nth-child(8) { animation-duration: 0.95s; animation-direction: reverse; }
+  voice-card:hover .line-draw:nth-child(9) { animation-duration: 1.05s; }
+  voice-card:hover .line-draw:nth-child(10) { animation-duration: 0.9s; animation-direction: reverse; }
+
+  /* Playing state - faster animation */
+  voice-card[playing] .line-draw {
+    stroke-dasharray: 6 3;
+    animation: line-flow-fast 0.4s linear infinite;
+  }
+
+  /* Selected state glow */
+  voice-card[selected] .figure-svg {
+    filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.2));
+  }
+
+  /* Hover float animation */
+  voice-card:hover .figure-svg {
+    animation: svg-float var(--duration-float, 3s) ease-in-out infinite;
+  }
+
+  /* Playing dance animation */
+  voice-card[playing] .figure-svg {
+    animation: svg-dance var(--duration-normal, 0.6s) ease-in-out infinite;
+  }
+}

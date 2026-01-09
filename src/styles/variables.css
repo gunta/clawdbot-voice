@@ -1,0 +1,117 @@
+/**
+ * CLAWD OS1 - Design Tokens & CSS Custom Properties
+ * Inspired by "Her" (2013) Spike Jonze
+ */
+
+@layer tokens {
+  :root {
+    /* Colors - Terracotta palette */
+    --color-red: #C84536;
+    --color-red-deep: #B33D2F;
+    --color-red-light: #D4554A;
+    --color-cream: #F5E6DC;
+    --color-white: #FFFFFF;
+    --color-white-soft: rgba(255, 255, 255, 0.85);
+    --color-white-faint: rgba(255, 255, 255, 0.4);
+    --color-white-ghost: rgba(255, 255, 255, 0.15);
+    --color-white-glass: rgba(255, 255, 255, 0.05);
+
+    /* Typography */
+    --font-display: 'Bodoni Moda', 'Georgia', serif;
+    --font-body: 'Cormorant Garamond', 'Georgia', serif;
+    --font-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.85rem;
+    --font-size-base: 0.95rem;
+    --font-size-md: 1rem;
+    --font-size-lg: 1.1rem;
+    --font-size-xl: 1.2rem;
+    --font-size-2xl: 1.5rem;
+
+    --font-weight-light: 300;
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+
+    --letter-spacing-tight: 0.02em;
+    --letter-spacing-normal: 0.05em;
+    --letter-spacing-wide: 0.1em;
+    --letter-spacing-wider: 0.15em;
+
+    /* Spacing */
+    --space-xs: 0.25rem;
+    --space-sm: 0.5rem;
+    --space-md: 0.75rem;
+    --space-lg: 1rem;
+    --space-xl: 1.5rem;
+    --space-2xl: 2rem;
+    --space-3xl: 3rem;
+    --space-4xl: 4rem;
+
+    /* Border radius */
+    --radius-sm: 2px;
+    --radius-md: 20px;
+    --radius-lg: 30px;
+    --radius-round: 50%;
+
+    /* Shadows */
+    --shadow-glow-sm: 0 0 15px rgba(255, 255, 255, 0.5);
+    --shadow-glow-md: 0 0 20px rgba(255, 255, 255, 0.2);
+    --shadow-glow-lg: 0 0 20px rgba(255, 255, 255, 0.3);
+
+    /* Transitions */
+    --transition-fast: 0.08s ease;
+    --transition-normal: 0.15s ease;
+    --transition-slow: 0.3s ease;
+    --transition-slower: 0.4s ease;
+
+    /* Animation durations */
+    --duration-fast: 0.4s;
+    --duration-normal: 0.6s;
+    --duration-slow: 0.8s;
+    --duration-pulse: 1.5s;
+    --duration-draw: 2s;
+    --duration-float: 3s;
+
+    /* Z-index layers */
+    --z-base: 0;
+    --z-elevated: 10;
+    --z-modal: 100;
+    --z-toast: 1000;
+
+    /* Component sizes */
+    --card-svg-width: 140px;
+    --card-svg-height: 200px;
+    --card-line-width: 120px;
+    --waveform-height: 40px;
+    --wave-bar-height: 15px;
+    --wave-bar-height-active: 35px;
+  }
+
+  /* Responsive token overrides */
+  @media (max-width: 700px) {
+    :root {
+      --card-svg-width: 100px;
+      --card-svg-height: 140px;
+      --card-line-width: 80px;
+      --waveform-height: 30px;
+      --wave-bar-height: 12px;
+      --wave-bar-height-active: 28px;
+    }
+  }
+
+  @media (max-height: 650px) {
+    :root {
+      --card-svg-width: 80px;
+      --card-svg-height: 110px;
+    }
+  }
+
+  @media (max-width: 400px) {
+    :root {
+      --card-svg-width: 85px;
+      --card-svg-height: 120px;
+      --card-line-width: 70px;
+    }
+  }
+}

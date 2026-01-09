@@ -1,0 +1,104 @@
+/**
+ * Audio Player Service
+ * Handles audio playback with events and media session integration
+ */
+
+import { wakeLockService } from './wake-lock.js';
+
+class AudioPlayerService extends EventTarget {
+  #audio = null;
+  #isPlaying = false;
+
+  /**
+   * Play an audio file
+   * @param {string} src - Audio source URL
+   * @param {object} options - Playback options
+   * @returns {Promise<void>}
+   */
+  async play(src, options = {}) {
+    // Stop any current playback
+    this.stop();
+
+    // Request wake lock
+    await wakeLockService.request();
+
+    // Create audio element
+    this.#audio = new Audio(src);
+    this.#isPlaying = true;
+
+    // Setup media session
+    if (options.title) {
+      this.#setupMediaSession(options);
+    }
+
+    // Handle events
+    this.#audio.addEventListener('ended', () => this.#handleEnded());
+    this.#audio.addEventListener('error', (e) => this.#handleError(e));
+
+    try {
+      await this.#audio.play();
+      this.dispatchEvent(new CustomEvent('play', { detail: { src } }));
+    } catch (err) {
+      console.error('[AudioPlayer] Playback failed:', err);
+      this.#handleError(err);
+      throw err;
+    }
+  }
+
+  /**
+   * Stop current playback
+   */
+  stop() {
+    if (this.#audio) {
+      this.#audio.pause();
+      this.#audio.currentTime = 0;
+      this.#audio = null;
+    }
+
+    this.#isPlaying = false;
+    wakeLockService.release();
+    
+    this.dispatchEvent(new CustomEvent('stop'));
+  }
+
+  /**
+   * Check if currently playing
+   * @returns {boolean}
+   */
+  get isPlaying() {
+    return this.#isPlaying;
+  }
+
+  #handleEnded() {
+    this.#isPlaying = false;
+    wakeLockService.release();
+    this.dispatchEvent(new CustomEvent('ended'));
+  }
+
+  #handleError(error) {
+    this.#isPlaying = false;
+    wakeLockService.release();
+    this.dispatchEvent(new CustomEvent('error', { detail: { error } }));
+  }
+
+  #setupMediaSession({ title, artist = 'Clawd', album = 'A Voice Experience' }) {
+    if (!('mediaSession' in navigator)) return;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title,
+      artist,
+      album,
+      artwork: [
+        { src: 'icons/icon-96.png', sizes: '96x96', type: 'image/png' },
+        { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+      ],
+    });
+
+    navigator.mediaSession.setActionHandler('pause', () => this.stop());
+    navigator.mediaSession.setActionHandler('stop', () => this.stop());
+  }
+}
+
+export const audioPlayer = new AudioPlayerService();
+export default audioPlayer;

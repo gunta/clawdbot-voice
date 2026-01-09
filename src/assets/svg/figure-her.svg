@@ -1,0 +1,19 @@
+<svg viewBox="0 0 200 280" fill="none" xmlns="http://www.w3.org/2000/svg" class="figure-svg">
+  <!-- Hair flowing curves -->
+  <path d="M60 80 Q30 100, 40 140 Q50 180, 70 200" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" class="line-draw"/>
+  <path d="M140 80 Q170 100, 160 140 Q150 180, 130 200" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" class="line-draw" style="animation-delay: 0.2s"/>
+  
+  <!-- Head - elegant oval -->
+  <ellipse cx="100" cy="70" rx="35" ry="45" stroke="currentColor" stroke-width="2" fill="none" class="line-draw" style="animation-delay: 0.4s"/>
+  
+  <!-- Neck and shoulders - flowing curve -->
+  <path d="M75 110 Q100 130, 125 110" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" class="line-draw" style="animation-delay: 0.6s"/>
+  
+  <!-- Body - single elegant S-curve -->
+  <path d="M85 125 Q70 160, 80 200 Q90 240, 100 260" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" class="line-draw" style="animation-delay: 0.8s"/>
+  <path d="M115 125 Q130 160, 120 200 Q110 240, 100 260" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" class="line-draw" style="animation-delay: 1s"/>
+  
+  <!-- Arms - graceful curves -->
+  <path d="M75 140 Q50 160, 45 190 Q42 210, 50 220" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" class="line-draw" style="animation-delay: 1.2s"/>
+  <path d="M125 140 Q150 160, 155 190 Q158 210, 150 220" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" class="line-draw" style="animation-delay: 1.4s"/>
+</svg>
