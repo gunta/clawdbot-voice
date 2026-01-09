@@ -1,13 +1,12 @@
-// Clawdbot Voice - OS1 Interface
+// Clawdbot Voice - Bold Red Edition
 // Inspired by Her (2013)
 
-class OS1Interface {
+class ClawdbotVoice {
     constructor() {
         this.assistantBtn = document.getElementById('assistantBtn');
         this.lobsterBtn = document.getElementById('lobsterBtn');
         this.waveform = document.getElementById('waveform');
         this.status = document.getElementById('status');
-        this.particles = document.getElementById('particles');
 
         this.currentAudio = null;
         this.isPlaying = false;
@@ -16,33 +15,8 @@ class OS1Interface {
     }
 
     init() {
-        this.createParticles();
         this.bindEvents();
-        this.updateStatus('Ready to listen');
-    }
-
-    createParticles() {
-        const particleCount = 30;
-
-        for (let i = 0; i < particleCount; i++) {
-            const particle = document.createElement('div');
-            particle.className = 'particle';
-
-            // Random position
-            particle.style.left = Math.random() * 100 + '%';
-            particle.style.top = Math.random() * 100 + '%';
-
-            // Random animation delay and duration
-            particle.style.animationDelay = Math.random() * 15 + 's';
-            particle.style.animationDuration = (10 + Math.random() * 10) + 's';
-
-            // Random size
-            const size = 2 + Math.random() * 4;
-            particle.style.width = size + 'px';
-            particle.style.height = size + 'px';
-
-            this.particles.appendChild(particle);
-        }
+        this.updateStatus('ready');
     }
 
     bindEvents() {
@@ -51,12 +25,19 @@ class OS1Interface {
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
-            if (e.key === '1' || e.key === 'a') {
+            if (e.key === '1' || e.key === 'a' || e.key === 'A') {
                 this.playVoice('assistant');
-            } else if (e.key === '2' || e.key === 'l') {
+            } else if (e.key === '2' || e.key === 'l' || e.key === 'L') {
                 this.playVoice('lobster');
             } else if (e.key === ' ' || e.key === 'Escape') {
                 e.preventDefault();
+                this.stopAudio();
+            }
+        });
+
+        // Click anywhere to stop
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.voice-card') && this.isPlaying) {
                 this.stopAudio();
             }
         });
@@ -81,20 +62,21 @@ class OS1Interface {
         this.status.classList.add('playing');
 
         // Update status
-        const voiceName = type === 'assistant' ? 'Assistant' : 'Clawdbot';
-        this.updateStatus(`${voiceName} is speaking...`);
+        const voiceName = type === 'assistant' ? 'she speaks...' : 'clawdbot speaks...';
+        this.updateStatus(voiceName);
 
         // Play audio
         this.currentAudio.play().catch(err => {
             console.log('Audio playback failed:', err);
-            this.updateStatus('Audio file not found - upload MP3 to audio folder');
-            this.stopAudio();
+            this.updateStatus('audio not found');
+            setTimeout(() => {
+                this.stopAudio();
+            }, 2000);
         });
 
         // Handle audio end
         this.currentAudio.addEventListener('ended', () => {
             this.stopAudio();
-            this.updateStatus('Ready to listen');
         });
 
         // Store reference to button for cleanup
@@ -115,7 +97,7 @@ class OS1Interface {
         this.status.classList.remove('playing');
 
         this.isPlaying = false;
-        this.updateStatus('Ready to listen');
+        this.updateStatus('ready');
     }
 
     updateStatus(text) {
@@ -128,21 +110,5 @@ class OS1Interface {
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    window.os1 = new OS1Interface();
-});
-
-// Easter egg - Double click logo for extra glow
-document.addEventListener('DOMContentLoaded', () => {
-    const logo = document.querySelector('.logo-circle');
-    if (logo) {
-        logo.addEventListener('dblclick', () => {
-            logo.style.animation = 'none';
-            logo.offsetHeight; // Trigger reflow
-            logo.style.animation = 'pulse 0.5s ease-in-out 3';
-
-            setTimeout(() => {
-                logo.style.animation = 'pulse 3s infinite ease-in-out';
-            }, 1500);
-        });
-    }
+    window.clawdbot = new ClawdbotVoice();
 });
