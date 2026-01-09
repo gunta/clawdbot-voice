@@ -26,12 +26,8 @@ export class LaunchpadView extends HTMLElement {
     // Keyboard navigation
     this.#boundHandleKeyDown = this.#handleKeyDown.bind(this);
     
-    // Click outside to close
-    this.addEventListener('click', (e) => {
-      if (e.target === this) {
-        this.close();
-      }
-    });
+    // Note: Removed "click outside to close" - was causing issues with shadow DOM event retargeting
+    // Users can close via the close button or Escape key
   }
 
   disconnectedCallback() {

@@ -127,12 +127,8 @@ export class ClockModal extends HTMLElement {
       };
     }
     
-    // Click on backdrop (the host element itself) to close
-    this.onclick = (e) => {
-      if (e.target === this && this.#isOpen) {
-        this.close();
-      }
-    };
+    // Note: Removed "click on backdrop to close" - was causing issues with shadow DOM event retargeting
+    // Users can close via Escape key or clicking elsewhere
   }
 
   #handleKeydown(e) {

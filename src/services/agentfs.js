@@ -5,16 +5,72 @@
  * 
  * @see https://docs.turso.tech/agentfs/sdk/typescript
  * 
+ * IMPORTANT: All folder/file names must be VOICE-NATURAL
+ * They must sound natural when spoken aloud (e.g., "pictures" not "imgs")
+ * 
  * Vendor dependencies (~9.5MB total, ~3.1MB gzipped):
  * - database-wasm.js: SQLite WASM implementation
  * - agentfs-browser.js: AgentFS SDK
  * - buffer.js: Buffer polyfill
+ * 
+ * Default filesystem structure:
+ * /
+ * ├── memories/        - Personal moments, things to remember (Her-inspired)
+ * ├── notes/           - Quick thoughts, ideas, reminders
+ * ├── conversations/   - AI chat history, relationship memory
+ * ├── favorites/       - Starred/loved items
+ * ├── projects/        - Code and project files
+ * ├── documents/       - General documents
+ * ├── music/           - Audio files, playlists
+ * ├── pictures/        - Photos, images, graphics
+ * ├── videos/          - Video files
+ * ├── recordings/      - Voice memos, audio notes
+ * ├── downloads/       - Downloaded files
+ * ├── uploads/         - Files for upload
+ * ├── settings/        - System configuration
+ * │   ├── config.json  - OS settings
+ * │   └── user.json    - User data
+ * └── temporary/       - Scratch/temp files
  */
 
 // Vendored paths (relative from services/)
 const DATABASE_WASM_PATH = '../vendor/database-wasm.js';
 const AGENTFS_PATH = '../vendor/agentfs-browser.js';
 const AGENT_ID = 'clawd-os';
+
+// Filesystem paths (voice-natural names - must sound natural when spoken aloud)
+const PATHS = {
+  CONFIG: '/settings/config.json',
+  USER: '/settings/user.json',
+  SETTINGS_DIR: '/settings',
+  // Default directories (all names must be speakable naturally)
+  // Organized by purpose: personal, media, transfers, system
+  DIRS: [
+    // Personal (Her-inspired, emotional, intimate)
+    '/memories',        // "Save this to my memories" - moments, personal history
+    '/notes',           // "Take a note" - quick thoughts, ideas, reminders
+    '/conversations',   // "Show our conversations" - AI chat history
+    '/favorites',       // "Add to favorites" - starred/loved items
+    
+    // Productivity
+    '/projects',        // Code, work, creative projects
+    '/documents',       // General documents, files
+    
+    // Media
+    '/music',           // Audio files, playlists
+    '/pictures',        // Photos, images, graphics
+    '/videos',          // Video files
+    '/recordings',      // Voice memos, audio notes
+    
+    // Transfers
+    '/downloads',       // Downloaded files
+    '/uploads',         // Files for upload
+    
+    // System
+    '/settings',        // OS configuration
+    '/temporary'        // Scratch/temp files
+  ]
+};
 
 /** @type {any} */
 let agent = null;
@@ -117,19 +173,65 @@ async function fileExists(path) {
 }
 
 /**
- * Bootstrap filesystem with default files
+ * Bootstrap filesystem with default directories and files
  */
 async function bootstrap() {
-  // Create /config.json if not exists
-  if (!(await fileExists('/config.json'))) {
-    await agent.fs.writeFile('/config.json', JSON.stringify(DEFAULT_CONFIG, null, 2));
-    console.log('[AgentFS] Created /config.json');
+  // Create default directories
+  for (const dir of PATHS.DIRS) {
+    if (!(await fileExists(dir))) {
+      try {
+        await agent.fs.mkdir(dir);
+        console.log('[AgentFS] Created directory:', dir);
+      } catch (err) {
+        if (err.code !== 'EEXIST') {
+          console.error('[AgentFS] Failed to create directory:', dir, err);
+        }
+      }
+    }
   }
   
-  // Create /user.json if not exists
-  if (!(await fileExists('/user.json'))) {
-    await agent.fs.writeFile('/user.json', JSON.stringify(createUserData(), null, 2));
-    console.log('[AgentFS] Created /user.json');
+  // Migrate old config/user files if they exist at root
+  await migrateOldFiles();
+  
+  // Create config.json if not exists
+  if (!(await fileExists(PATHS.CONFIG))) {
+    await agent.fs.writeFile(PATHS.CONFIG, JSON.stringify(DEFAULT_CONFIG, null, 2));
+    console.log('[AgentFS] Created', PATHS.CONFIG);
+  }
+  
+  // Create user.json if not exists
+  if (!(await fileExists(PATHS.USER))) {
+    await agent.fs.writeFile(PATHS.USER, JSON.stringify(createUserData(), null, 2));
+    console.log('[AgentFS] Created', PATHS.USER);
+  }
+}
+
+/**
+ * Migrate old files from root to settings folder
+ */
+async function migrateOldFiles() {
+  // Migrate /config.json to /settings/config.json
+  if (await fileExists('/config.json') && !(await fileExists(PATHS.CONFIG))) {
+    try {
+      const content = await agent.fs.readFile('/config.json', 'utf-8');
+      await agent.fs.writeFile(PATHS.CONFIG, content);
+      await agent.fs.unlink('/config.json');
+      console.log('[AgentFS] Migrated /config.json to', PATHS.CONFIG);
+    } catch (err) {
+      console.error('[AgentFS] Migration failed for config.json:', err);
+    }
+  }
+  
+  // Migrate /user.json to /settings/user.json
+  if (await fileExists('/user.json') && !(await fileExists(PATHS.USER))) {
+    try {
+      const content = await agent.fs.readFile('/user.json', 'utf-8');
+      await agent.fs.writeFile(PATHS.USER, content);
+      await agent.fs.unlink('/user.json');
+      console.log('[AgentFS] Migrated /user.json to', PATHS.USER);
+    } catch (err) {
+      console.error('[AgentFS] Migration failed for user.json:', err);
+    }
   }
 }
 
@@ -137,11 +239,11 @@ async function bootstrap() {
  * Update lastUsage timestamp
  */
 async function updateLastUsage() {
-  const userData = await readJSON('/user.json');
+  const userData = await readJSON(PATHS.USER);
   if (userData) {
     userData.lastUsage = Date.now();
     userData.sessionCount = (userData.sessionCount || 0) + 1;
-    await writeJSON('/user.json', userData);
+    await writeJSON(PATHS.USER, userData);
   }
 }
 
@@ -331,7 +433,7 @@ export async function kvList(prefix) {
  * @returns {Promise<typeof DEFAULT_CONFIG>}
  */
 export async function getConfig() {
-  const config = await readJSON('/config.json');
+  const config = await readJSON(PATHS.CONFIG);
   return config || DEFAULT_CONFIG;
 }
 
@@ -342,7 +444,7 @@ export async function getConfig() {
 export async function updateConfig(updates) {
   const config = await getConfig();
   const merged = deepMerge(config, updates);
-  await writeJSON('/config.json', merged);
+  await writeJSON(PATHS.CONFIG, merged);
   return merged;
 }
 
@@ -351,7 +453,7 @@ export async function updateConfig(updates) {
  * @returns {Promise<ReturnType<typeof createUserData> | null>}
  */
 export async function getUser() {
-  return readJSON('/user.json');
+  return readJSON(PATHS.USER);
 }
 
 /**
@@ -362,7 +464,7 @@ export async function updateUser(updates) {
   const user = await getUser();
   if (!user) return null;
   const merged = { ...user, ...updates };
-  await writeJSON('/user.json', merged);
+  await writeJSON(PATHS.USER, merged);
   return merged;
 }
 
@@ -421,5 +523,13 @@ export async function getAgent() {
   return agent;
 }
 
-// Export default config for reference
-export { DEFAULT_CONFIG };
+/**
+ * Get default filesystem paths
+ * @returns {typeof PATHS}
+ */
+export function getPaths() {
+  return PATHS;
+}
+
+// Export default config and paths for reference
+export { DEFAULT_CONFIG, PATHS };

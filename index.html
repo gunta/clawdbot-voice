@@ -229,6 +229,48 @@
     </template>
   </files-app>
 
+  <!-- Commands App - Terminal Interface -->
+  <commands-app id="commandsApp">
+    <template shadowrootmode="open">
+      <link rel="stylesheet" href="src/components/styles/commands-app.css">
+      
+      <div class="header">
+        <div class="header-left">
+          <button class="back-btn" type="button" aria-label="Go back">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M15 18L9 12L15 6" />
+            </svg>
+            <span class="back-btn-text">back</span>
+          </button>
+          <span class="title">commands</span>
+        </div>
+        <span class="path-display">/</span>
+        <button class="close-btn" type="button" aria-label="Close terminal">
+          <svg viewBox="0 0 24 24" fill="none">
+            <line x1="6" y1="6" x2="18" y2="18" />
+            <line x1="18" y1="6" x2="6" y2="18" />
+          </svg>
+        </button>
+      </div>
+      
+      <div class="terminal-container">
+        <div class="terminal-wrapper"></div>
+      </div>
+      
+      <div class="status-bar">
+        <div class="status-bar-left">
+          <span class="status-item">
+            <svg viewBox="0 0 24 24">
+              <polyline points="4 17 10 11 4 5" />
+            </svg>
+            bash
+          </span>
+        </div>
+        <span class="status-item">AgentFS</span>
+      </div>
+    </template>
+  </commands-app>
+
   <!-- Launchpad - App Launcher -->
   <launchpad-view id="launchpad">
     <template shadowrootmode="open">
@@ -255,6 +297,28 @@
           <span class="app-name">files</span>
         </div>
         
+        <!-- Commands App (Terminal) -->
+        <div class="app-card" data-app="commands" tabindex="0" role="button" aria-label="Open Commands">
+          <div class="app-icon">
+            <svg viewBox="0 0 24 24">
+              <polyline points="4 17 10 11 4 5" />
+              <line x1="12" y1="19" x2="20" y2="19" />
+            </svg>
+          </div>
+          <span class="app-name">commands</span>
+        </div>
+        
+        <!-- Code App (Monaco Editor) -->
+        <div class="app-card" data-app="coder" tabindex="0" role="button" aria-label="Open Code">
+          <div class="app-icon">
+            <svg viewBox="0 0 24 24">
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+          </div>
+          <span class="app-name">code</span>
+        </div>
+        
         <!-- Voice App (current view) -->
         <div class="app-card" data-app="voice" data-active="true" tabindex="0" role="button" aria-label="Open Voice">
           <div class="app-icon">
@@ -273,7 +337,7 @@
           <div class="app-icon">
             <svg viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15C19.2 15.3 19.1 15.7 19.1 16.1C19.1 16.8 19.4 17.4 19.8 17.9L19.9 18C20.3 18.4 20.5 18.9 20.5 19.5C20.5 20.1 20.3 20.6 19.9 21C19.5 21.4 19 21.6 18.4 21.6C17.8 21.6 17.3 21.4 16.9 21L16.8 20.9C16.3 20.5 15.7 20.2 15 20.2C14.6 20.2 14.2 20.3 13.9 20.5C13.3 20.8 12.9 21.4 12.8 22V22.1C12.8 23.2 11.9 24 10.8 24H10.5C9.4 24 8.6 23.2 8.6 22.1V22C8.5 21.4 8.1 20.8 7.5 20.5C7.2 20.3 6.8 20.2 6.4 20.2C5.7 20.2 5.1 20.5 4.6 20.9L4.5 21C4.1 21.4 3.6 21.6 3 21.6C2.4 21.6 1.9 21.4 1.5 21C1.1 20.6 0.9 20.1 0.9 19.5C0.9 18.9 1.1 18.4 1.5 18L1.6 17.9C2 17.4 2.3 16.8 2.3 16.1C2.3 15.7 2.2 15.3 2 15C1.7 14.4 1.1 14 0.5 13.9H0.4C-0.7 13.9 -1.5 13 -1.5 11.9V11.6C-1.5 10.5 -0.7 9.7 0.4 9.7H0.5C1.1 9.6 1.7 9.2 2 8.6C2.2 8.3 2.3 7.9 2.3 7.5C2.3 6.8 2 6.2 1.6 5.7L1.5 5.6C1.1 5.2 0.9 4.7 0.9 4.1C0.9 3.5 1.1 3 1.5 2.6C1.9 2.2 2.4 2 3 2C3.6 2 4.1 2.2 4.5 2.6L4.6 2.7C5.1 3.1 5.7 3.4 6.4 3.4" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
           </div>
           <span class="app-name">settings</span>
@@ -284,6 +348,56 @@
 
   <!-- Text Editor - Native text editor for files -->
   <text-editor id="textEditor"></text-editor>
+
+  <!-- Coder App - Monaco-powered code editor -->
+  <coder-app id="coderApp">
+    <template shadowrootmode="open">
+      <link rel="stylesheet" href="src/components/styles/coder-app.css">
+      
+      <div class="header">
+        <div class="header-left">
+          <button class="back-btn" type="button" aria-label="Back to Files">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M19 12H5M5 12L12 19M5 12L12 5" />
+            </svg>
+          </button>
+        </div>
+        <div class="title-area">
+          <span class="title">Untitled</span>
+          <span class="status"></span>
+        </div>
+        <div class="header-right">
+          <button class="save-btn" type="button" aria-label="Save file">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16L21 8V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21Z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            <span>Save</span>
+          </button>
+          <button class="close-btn" type="button" aria-label="Close editor">
+            <svg viewBox="0 0 24 24" fill="none">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      
+      <div class="editor-container">
+        <div class="editor-wrapper"></div>
+        <div class="loading-overlay">
+          <div class="loading-spinner"></div>
+          <span class="loading-text">Loading editor...</span>
+        </div>
+      </div>
+      
+      <div class="footer">
+        <span class="language-info">Plain Text</span>
+        <span class="cursor-position">Ln 1, Col 1</span>
+      </div>
+    </template>
+  </coder-app>
 
   <!-- Clock Modal - Bold, simple analog clock -->
   <clock-modal id="clockModal">

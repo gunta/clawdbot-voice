@@ -32,6 +32,11 @@ class ClawdOS1App {
       speakBtn: document.getElementById('speakBtn'),
       status: document.getElementById('status'),
     };
+    
+    // Debug: verify gpuWaveform is found
+    if (!this.#elements.gpuWaveform) {
+      console.warn('[CLAWD] gpuWaveform element not found!');
+    }
   }
 
   #initControllers() {

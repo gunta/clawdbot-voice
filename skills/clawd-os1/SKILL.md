@@ -61,6 +61,38 @@ Deployment Matrix:
 - **Voice-first**: Visual UI supports voice, not the other way around
 - **Emotional presence**: The interface should feel like it's listening, thinking, responding
 
+### ⚠️ CRITICAL: Voice-Natural Naming Rule
+
+**Everything must sound natural when spoken aloud.**
+
+This is a voice-first OS. Users will speak folder names, commands, and file references. All naming must pass the "say it out loud" test.
+
+| ❌ Don't Use | ✅ Use Instead | Why |
+|-------------|----------------|-----|
+| `temp` | `temporary` | "Put it in temp" sounds robotic |
+| `imgs` | `pictures` | "Show my imgs" is unnatural |
+| `docs` | `documents` | "Open docs" sounds like jargon |
+| `cfg` | `config` or `settings` | Abbreviations aren't spoken |
+| `usr` | `user` | Unix conventions ≠ voice conventions |
+| `misc` | `other` or be specific | Vague abbreviations |
+
+**Test every name**: Can a user naturally say "Open my [folder]" or "Go to [folder]"?
+
+```
+Good: "Show me my pictures"
+Good: "Go to my downloads"
+Good: "Open the temporary folder"
+Bad:  "Go to temp"
+Bad:  "Open imgs"
+```
+
+This rule applies to:
+- Folder names
+- File names (when user-facing)
+- Command names
+- UI labels
+- Any text the user might speak or hear
+
 ### Visual Language
 - Clean line-art illustrations (Her character, Clawd lobster)
 - Serif italic fonts for names (elegant, personal)
@@ -111,10 +143,22 @@ AgentFS Storage Architecture:
 │                    ClawdOS AgentFS                          │
 ├─────────────────────────────────────────────────────────────┤
 │  Filesystem (/*)           │  Key-Value Store (kv.*)       │
-│  ├── /config.json          │  ├── session:*                │
-│  ├── /user.json            │  ├── pref:*                   │
-│  ├── /logs/*               │  └── cache:*                  │
-│  └── /data/*               │                               │
+│  ├── /memories/            │  ├── session:*                │
+│  ├── /notes/               │  ├── pref:*                   │
+│  ├── /conversations/       │  └── cache:*                  │
+│  ├── /favorites/           │                               │
+│  ├── /projects/            │                               │
+│  ├── /documents/           │                               │
+│  ├── /music/               │                               │
+│  ├── /pictures/            │                               │
+│  ├── /videos/              │                               │
+│  ├── /recordings/          │                               │
+│  ├── /downloads/           │                               │
+│  ├── /uploads/             │                               │
+│  ├── /settings/            │                               │
+│  │   ├── config.json       │                               │
+│  │   └── user.json         │                               │
+│  └── /temporary/           │                               │
 ├─────────────────────────────────────────────────────────────┤
 │              SQLite (WebAssembly) - .agentfs/clawd-os.db    │
 └─────────────────────────────────────────────────────────────┘
@@ -124,8 +168,27 @@ AgentFS Storage Architecture:
 
 | Path | Purpose |
 |------|---------|
-| `/config.json` | OS configuration (theme, voice, audio, display) |
-| `/user.json` | User data (firstUsage, lastUsage, sessionCount) |
+| `/settings/config.json` | OS configuration (theme, voice, audio, display) |
+| `/settings/user.json` | User data (firstUsage, lastUsage, sessionCount) |
+
+**Default Directories (all voice-natural names):**
+
+| Category | Path | Purpose | Voice Example |
+|----------|------|---------|---------------|
+| **Personal** | `/memories` | Personal moments, things to remember | "Save this to my memories" |
+| | `/notes` | Quick thoughts, ideas, reminders | "Take a note" |
+| | `/conversations` | AI chat history, relationship | "Show our conversations" |
+| | `/favorites` | Starred/loved items | "Add to my favorites" |
+| **Productivity** | `/projects` | Code and project files (HOME) | "Open my projects" |
+| | `/documents` | General documents | "Find my documents" |
+| **Media** | `/music` | Audio files, playlists | "Play my music" |
+| | `/pictures` | Photos and graphics | "Show my pictures" |
+| | `/videos` | Video files | "Watch my videos" |
+| | `/recordings` | Voice memos, audio notes | "Play my recordings" |
+| **Transfers** | `/downloads` | Downloaded files | "Check my downloads" |
+| | `/uploads` | Files for upload | "What's in uploads" |
+| **System** | `/settings` | OS configuration | "Open settings" |
+| | `/temporary` | Scratch/temp files | "Clear temporary" |
 
 **Usage:**
 ```javascript
@@ -134,7 +197,7 @@ import { agentfs } from './services/index.js';
 // Initialize early
 await agentfs.init();
 
-// Config operations
+// Config operations (stored in /settings/)
 const config = await agentfs.getConfig();
 await agentfs.updateConfig({ theme: 'light' });
 
@@ -142,13 +205,18 @@ await agentfs.updateConfig({ theme: 'light' });
 const user = await agentfs.getUser();
 const returning = await agentfs.isReturningUser();
 
-// Raw filesystem
-await agentfs.writeFile('/logs/session.txt', 'data');
-const content = await agentfs.readFile('/logs/session.txt', 'utf-8');
+// Raw filesystem (use voice-natural folder names!)
+await agentfs.writeFile('/documents/notes.txt', 'My notes');
+await agentfs.writeFile('/temporary/cache.json', '{}');
+const content = await agentfs.readFile('/documents/notes.txt', 'utf-8');
 
 // Key-Value store
 await agentfs.kvSet('pref:voice', 'clawd');
 const voice = await agentfs.kvGet('pref:voice');
+
+// Access paths constant
+import { PATHS } from './services/agentfs.js';
+console.log(PATHS.DIRS); // All default directories
 ```
 
 **Future Roadmap:**

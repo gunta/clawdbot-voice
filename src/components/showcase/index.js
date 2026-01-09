@@ -682,15 +682,8 @@ class MembraneModal extends HTMLElement {
 
     closeBtn?.addEventListener('click', () => this.close());
 
-    backdrop?.addEventListener('click', (e) => {
-      if (e.target === backdrop) {
-        this.style.setProperty('--click-x', `${e.clientX}px`);
-        this.style.setProperty('--click-y', `${e.clientY}px`);
-        this.setAttribute('backdrop-touched', '');
-        setTimeout(() => this.removeAttribute('backdrop-touched'), 500);
-        this.close();
-      }
-    });
+    // Note: Removed "click backdrop to close" per user request
+    // backdrop?.addEventListener('click', (e) => { ... });
 
     surface?.addEventListener('click', (e) => {
       const rect = surface.getBoundingClientRect();

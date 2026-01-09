@@ -53,7 +53,9 @@ class AudioPlayerService extends EventTarget {
    * Stop current playback
    */
   stop() {
-    if (this.#audio && this.#isPlaying) {
+    const wasPlaying = this.#isPlaying;
+    
+    if (this.#audio && wasPlaying) {
       this.#audio.pause();
       this.#audio.currentTime = 0;
     }
@@ -61,7 +63,10 @@ class AudioPlayerService extends EventTarget {
     this.#isPlaying = false;
     audioAnalyzer.stopAnalysis();
     
-    this.dispatchEvent(new CustomEvent('stop'));
+    // Only dispatch stop event if we were actually playing
+    if (wasPlaying) {
+      this.dispatchEvent(new CustomEvent('stop'));
+    }
   }
 
   /**

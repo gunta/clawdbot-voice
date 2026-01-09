@@ -25,6 +25,10 @@ class KeyboardController {
   #handleKeydown(e) {
     // Ignore if typing in input
     if (e.target.matches('input, textarea')) return;
+    
+    // Ignore if Commands app is open (terminal needs keyboard input)
+    const commandsApp = document.getElementById('commandsApp');
+    if (commandsApp?.hasAttribute('open')) return;
 
     switch (e.key) {
       case ' ':

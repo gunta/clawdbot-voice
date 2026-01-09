@@ -138,6 +138,10 @@ export class GpuWaveform extends HTMLElement {
   }
 
   #render() {
+    // Apply inline style immediately to prevent FOUC
+    this.style.opacity = '0';
+    this.style.visibility = 'hidden';
+    
     this.shadowRoot.innerHTML = `
       <style>
         :host {
@@ -147,14 +151,16 @@ export class GpuWaveform extends HTMLElement {
           margin: 0 auto;
           height: var(--gpu-waveform-height, 40px);
           opacity: 0;
+          visibility: hidden;
           transform: translateY(5px) scale(0.95);
-          transition: opacity 0.6s ease, transform 0.6s ease;
+          transition: opacity 0.5s ease, visibility 0.5s ease, transform 0.5s ease;
           pointer-events: none;
         }
 
         /* Fade in when active (Her or Clawd speaking) */
         :host([active]) {
           opacity: 1;
+          visibility: visible;
           transform: translateY(0) scale(1);
         }
 
@@ -451,7 +457,18 @@ export class GpuWaveform extends HTMLElement {
   }
 
   set active(value) {
-    this.toggleAttribute('active', Boolean(value));
+    const isActive = Boolean(value);
+    const wasActive = this.active;
+    
+    if (wasActive !== isActive) {
+      console.log('[GpuWaveform] Active:', isActive);
+    }
+    
+    this.toggleAttribute('active', isActive);
+    
+    // Clear inline styles so CSS can take over
+    this.style.opacity = '';
+    this.style.visibility = '';
   }
 
   get isHDR() {

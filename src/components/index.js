@@ -16,3 +16,5 @@ export { LaunchpadView } from './launchpad-view.js';
 export { FilesApp } from './files-app.js';
 export { TextEditor } from './text-editor.js';
 export { HandwriteText } from './handwrite-text.js';
+export { CommandsApp } from './commands-app.js';
+export { CoderApp } from './coder-app.js';
