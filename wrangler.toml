@@ -1,0 +1,9 @@
+# Cloudflare Pages configuration
+name = "clawdbot-voice"
+compatibility_date = "2024-01-01"
+
+# Pages-specific settings
+pages_build_output_dir = "dist"
+
+# Note: For Cloudflare Pages, headers are configured via public/_headers file
+# This file is used for `wrangler pages deploy` command

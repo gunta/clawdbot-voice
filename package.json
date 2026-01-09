@@ -1,0 +1,17 @@
+{
+  "name": "clawdbot-voice",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "CLAWD OS1 - A voice experience",
+  "scripts": {
+    "serve": "npx serve .",
+    "deploy:cloudflare": "wrangler pages deploy .",
+    "deploy:vercel": "vercel"
+  },
+  "devDependencies": {
+    "wrangler": "^4.58.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -27,6 +27,7 @@ class ClawdOS1App {
       assistantCard: document.getElementById('assistantCard'),
       lobsterCard: document.getElementById('lobsterCard'),
       waveform: document.getElementById('waveform'),
+      gpuWaveform: document.getElementById('gpuWaveform'),
       transcription: document.getElementById('transcription'),
       speakBtn: document.getElementById('speakBtn'),
       status: document.getElementById('status'),
@@ -94,12 +95,26 @@ class ClawdOS1App {
   }
 
   async #setupServiceWorker() {
+    // Service worker disabled for development
+    // Unregister any existing service workers and clear caches
     if ('serviceWorker' in navigator) {
       try {
-        const reg = await navigator.serviceWorker.register('/sw.js');
-        console.log('[SW] Registered:', reg.scope);
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          await registration.unregister();
+          console.log('[SW] Unregistered:', registration.scope);
+        }
+        // Clear all caches
+        const cacheNames = await caches.keys();
+        for (const name of cacheNames) {
+          await caches.delete(name);
+          console.log('[SW] Cache deleted:', name);
+        }
+        if (registrations.length || cacheNames.length) {
+          console.log('[SW] Service worker and caches cleared');
+        }
       } catch (err) {
-        console.warn('[SW] Failed:', err);
+        console.warn('[SW] Cleanup failed:', err);
       }
     }
   }

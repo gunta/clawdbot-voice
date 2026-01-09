@@ -8,6 +8,7 @@
  */
 
 import { generateDateGreeting } from '../services/date-greetings.js';
+import './handwrite-text.js';
 
 export class ClockModal extends HTMLElement {
   #animationFrame = null;
@@ -47,6 +48,7 @@ export class ClockModal extends HTMLElement {
       </button>
       
       <div class="date-display" id="dateDisplay"></div>
+      <handwrite-text class="handwrite-greeting" id="handwriteGreeting" color="oklch(1 0 0 / 0.85)" animate></handwrite-text>
       
       <div class="clock-container">
         <svg class="clock-svg" viewBox="0 0 400 400">
@@ -109,7 +111,8 @@ export class ClockModal extends HTMLElement {
       minuteHand: sr.getElementById('minuteHand'),
       secondHand: sr.getElementById('secondHand'),
       digitalTime: sr.getElementById('digitalTime'),
-      dateDisplay: sr.getElementById('dateDisplay')
+      dateDisplay: sr.getElementById('dateDisplay'),
+      handwriteGreeting: sr.getElementById('handwriteGreeting')
     };
   }
 
@@ -169,7 +172,13 @@ export class ClockModal extends HTMLElement {
     
     // Update date greeting (only once per open, not every frame)
     if (this.elements.dateDisplay && !this.elements.dateDisplay.textContent) {
-      this.elements.dateDisplay.textContent = generateDateGreeting(now);
+      const greeting = generateDateGreeting(now);
+      this.elements.dateDisplay.textContent = greeting;
+      
+      // Set handwriting text to match the greeting
+      if (this.elements.handwriteGreeting) {
+        this.elements.handwriteGreeting.setAttribute('text', greeting);
+      }
     }
     
     if (this.#isOpen) {
@@ -187,6 +196,10 @@ export class ClockModal extends HTMLElement {
     // Clear date so it regenerates with new random greeting
     if (this.elements.dateDisplay) {
       this.elements.dateDisplay.textContent = '';
+    }
+    // Clear handwriting so it regenerates with new variation
+    if (this.elements.handwriteGreeting) {
+      this.elements.handwriteGreeting.removeAttribute('text');
     }
     this.#updateClock();
   }

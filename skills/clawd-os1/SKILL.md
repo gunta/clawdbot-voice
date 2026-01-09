@@ -93,13 +93,76 @@ HTML5 + CSS3 + ES Modules (no build step)
 ├── Screen Wake Lock API (always-on listening)
 ├── Service Worker (offline, caching)
 ├── Media Session API (lock screen controls)
-└── Vibration API (haptic feedback)
+├── Vibration API (haptic feedback)
+└── AgentFS (Turso) - Browser-based filesystem & KV store
 ```
+
+### AgentFS - OS Filesystem Layer
+
+ClawdOS uses [Turso AgentFS](https://docs.turso.tech/agentfs/sdk/typescript) as its core persistence layer. This provides a real filesystem and key-value store that runs entirely in the browser.
+
+**Vendored locally** for offline-first support (~54KB total):
+- `src/vendor/agentfs-browser.js` - AgentFS SDK
+- `src/vendor/buffer.js` - Buffer polyfill dependency
+
+```
+AgentFS Storage Architecture:
+┌─────────────────────────────────────────────────────────────┐
+│                    ClawdOS AgentFS                          │
+├─────────────────────────────────────────────────────────────┤
+│  Filesystem (/*)           │  Key-Value Store (kv.*)       │
+│  ├── /config.json          │  ├── session:*                │
+│  ├── /user.json            │  ├── pref:*                   │
+│  ├── /logs/*               │  └── cache:*                  │
+│  └── /data/*               │                               │
+├─────────────────────────────────────────────────────────────┤
+│              SQLite (WebAssembly) - .agentfs/clawd-os.db    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Core Files:**
+
+| Path | Purpose |
+|------|---------|
+| `/config.json` | OS configuration (theme, voice, audio, display) |
+| `/user.json` | User data (firstUsage, lastUsage, sessionCount) |
+
+**Usage:**
+```javascript
+import { agentfs } from './services/index.js';
+
+// Initialize early
+await agentfs.init();
+
+// Config operations
+const config = await agentfs.getConfig();
+await agentfs.updateConfig({ theme: 'light' });
+
+// User operations
+const user = await agentfs.getUser();
+const returning = await agentfs.isReturningUser();
+
+// Raw filesystem
+await agentfs.writeFile('/logs/session.txt', 'data');
+const content = await agentfs.readFile('/logs/session.txt', 'utf-8');
+
+// Key-Value store
+await agentfs.kvSet('pref:voice', 'clawd');
+const voice = await agentfs.kvGet('pref:voice');
+```
+
+**Future Roadmap:**
+- **Turso Cloud Sync** (optional): Sync filesystem across devices
+- **Multi-device state**: Share preferences, history across browsers
+- **Backup/Restore**: Export/import OS state
 
 ### Architecture
 ```
 src/
 ├── app.js              # Main orchestrator
+├── vendor/             # Third-party dependencies (vendored for offline)
+│   ├── agentfs-browser.js     # Turso AgentFS SDK
+│   └── buffer.js              # Buffer polyfill
 ├── components/         # Web Components (behavior only)
 │   ├── *.js           # Component classes
 │   └── styles/*.css   # Component styles (linked via Declarative Shadow DOM)
@@ -108,6 +171,7 @@ src/
 │   ├── speech-controller.js   # Recognition, synthesis, responses
 │   └── keyboard-controller.js # Keyboard shortcuts
 └── services/           # Reusable services
+    ├── agentfs.js             # ★ Core OS filesystem (Turso AgentFS)
     ├── audio-analyzer.js      # Web Audio frequency analysis
     ├── audio-player.js        # MP3 playback
     ├── speech-recognition.js  # Speech-to-text

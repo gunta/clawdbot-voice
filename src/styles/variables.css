@@ -1,20 +1,53 @@
 /**
  * CLAWD OS1 - Design Tokens & CSS Custom Properties
  * Inspired by "Her" (2013) Spike Jonze
+ * 
+ * HDR-enabled with OKLCH color space
+ * Supports displays with dynamic-range: high
  */
 
 @layer tokens {
   :root {
-    /* Colors - Terracotta palette */
-    --color-red: #C84536;
-    --color-red-deep: #B33D2F;
-    --color-red-light: #D4554A;
-    --color-cream: #F5E6DC;
-    --color-white: #FFFFFF;
-    --color-white-soft: rgba(255, 255, 255, 0.85);
-    --color-white-faint: rgba(255, 255, 255, 0.4);
-    --color-white-ghost: rgba(255, 255, 255, 0.15);
-    --color-white-glass: rgba(255, 255, 255, 0.05);
+    /* 
+     * HDR Mode - Allow brightness beyond SDR reference white
+     * https://developer.mozilla.org/en-US/docs/Web/CSS/dynamic-range-limit
+     */
+    dynamic-range-limit: no-limit;
+    color-scheme: dark;
+
+    /* 
+     * OKLCH Color System
+     * L: Lightness (0-1 SDR, >1 for HDR)
+     * C: Chroma (saturation, 0-0.4)
+     * H: Hue (0-360°)
+     */
+
+    /* Colors - Terracotta palette in OKLCH */
+    --color-red: oklch(0.55 0.155 25);
+    --color-red-deep: oklch(0.48 0.145 23);
+    --color-red-light: oklch(0.62 0.16 26);
+    --color-cream: oklch(0.93 0.025 75);
+    
+    /* SDR White (reference white, L=1.0) */
+    --color-white-sdr: oklch(1 0 0);
+    
+    /* HDR White variants - Lightness > 1.0 for HDR displays */
+    --color-white: oklch(1 0 0);           /* Base white - will be overridden for HDR */
+    --color-white-soft: oklch(1 0 0 / 0.85);
+    --color-white-faint: oklch(1 0 0 / 0.4);
+    --color-white-ghost: oklch(1 0 0 / 0.15);
+    --color-white-glass: oklch(1 0 0 / 0.05);
+
+    /* Shadows in OKLCH */
+    --shadow-glow-sm: 0 0 15px oklch(1 0 0 / 0.5);
+    --shadow-glow-md: 0 0 20px oklch(1 0 0 / 0.2);
+    --shadow-glow-lg: 0 0 20px oklch(1 0 0 / 0.3);
+
+    /* HDR Headroom levels (for HDR-capable displays) */
+    --hdr-white-bright: oklch(1.15 0 0);   /* ~1.5 stops above SDR */
+    --hdr-white-vivid: oklch(1.3 0 0);     /* ~2 stops above SDR */
+    --hdr-white-peak: oklch(1.5 0 0);      /* ~3 stops above SDR - MAXIMUM BRIGHT */
+    --hdr-glow: oklch(1.3 0.02 75);        /* Warm HDR glow */
 
     /* Typography */
     --font-display: 'Bodoni Moda', 'Georgia', serif;
@@ -54,10 +87,7 @@
     --radius-lg: 30px;
     --radius-round: 50%;
 
-    /* Shadows */
-    --shadow-glow-sm: 0 0 15px rgba(255, 255, 255, 0.5);
-    --shadow-glow-md: 0 0 20px rgba(255, 255, 255, 0.2);
-    --shadow-glow-lg: 0 0 20px rgba(255, 255, 255, 0.3);
+    /* Shadows - defined above with OKLCH */
 
     /* Transitions */
     --transition-fast: 0.08s ease;
@@ -136,6 +166,45 @@
       --waveform-height: 60px;
       --wave-bar-height: 25px;
       --wave-bar-height-active: 55px;
+    }
+  }
+
+  /* 
+   * HDR Display Support
+   * Enables peak brightness whites on HDR-capable displays
+   * Falls back gracefully to SDR on standard displays
+   */
+  @media (dynamic-range: high) {
+    :root {
+      /* Boost text to HDR white - MAXIMUM BRIGHTNESS */
+      --color-white: oklch(1.5 0 0);
+      --color-white-soft: oklch(1.35 0 0 / 0.9);
+      --color-white-faint: oklch(1.2 0 0 / 0.5);
+      --color-white-ghost: oklch(1.15 0 0 / 0.25);
+      --color-white-glass: oklch(1.1 0 0 / 0.1);
+
+      /* Enhanced HDR shadows with bloom */
+      --shadow-glow-sm: 0 0 20px oklch(1.3 0 0 / 0.6);
+      --shadow-glow-md: 0 0 30px oklch(1.2 0 0 / 0.35);
+      --shadow-glow-lg: 0 0 40px oklch(1.25 0 0 / 0.4);
+    }
+  }
+
+  /* Wide color gamut displays (P3, Rec.2020) */
+  @media (color-gamut: p3) {
+    :root {
+      /* More saturated reds on wide gamut displays */
+      --color-red: oklch(0.55 0.18 25);
+      --color-red-deep: oklch(0.48 0.17 23);
+      --color-red-light: oklch(0.62 0.19 26);
+    }
+  }
+
+  /* Prefer HDR content when available */
+  @media (video-dynamic-range: high) {
+    :root {
+      /* Video-capable HDR - use full headroom */
+      --hdr-white-peak: oklch(2 0 0);
     }
   }
 }

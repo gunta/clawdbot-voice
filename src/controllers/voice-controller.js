@@ -17,7 +17,7 @@ class VoiceController extends EventTarget {
   init(elements) {
     this.#elements = elements;
     this.#bindEvents();
-    this.select('clawd');
+    this.select('clawd', { silent: true }); // Skip haptic on initial selection
   }
 
   #bindEvents() {
@@ -35,6 +35,7 @@ class VoiceController extends EventTarget {
       this.#isPlaying = false;
       this.#clearPlaying();
       this.#elements.waveform.active = false;
+      if (this.#elements.gpuWaveform) this.#elements.gpuWaveform.active = false;
       this.dispatchEvent(new CustomEvent('idle'));
     });
 
@@ -42,6 +43,7 @@ class VoiceController extends EventTarget {
       this.#isPlaying = false;
       this.#clearPlaying();
       this.#elements.waveform.active = false;
+      if (this.#elements.gpuWaveform) this.#elements.gpuWaveform.active = false;
       this.dispatchEvent(new CustomEvent('idle'));
     });
 
@@ -58,7 +60,7 @@ class VoiceController extends EventTarget {
     return this.#isPlaying;
   }
 
-  select(voice) {
+  select(voice, { silent = false } = {}) {
     this.#selectedVoice = voice;
     
     if (this.#elements.assistantCard) {
@@ -68,7 +70,9 @@ class VoiceController extends EventTarget {
       this.#elements.lobsterCard.selected = voice === 'clawd';
     }
     
-    haptic('light');
+    if (!silent) {
+      haptic('light');
+    }
   }
 
   async play(voice) {
@@ -97,6 +101,7 @@ class VoiceController extends EventTarget {
     // Update UI
     this.#markPlaying(voice);
     this.#elements.waveform.active = true;
+    if (this.#elements.gpuWaveform) this.#elements.gpuWaveform.active = true;
     
     // Play chime before voice starts
     if (voice === 'her') {

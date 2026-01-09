@@ -1,4 +1,5 @@
 /* Voice Card Component Styles */
+/* HDR-enabled with OKLCH colors */
 
 :host {
   display: flex;
@@ -11,6 +12,8 @@
   -webkit-tap-highlight-color: transparent;
   animation: fade-in 1s ease forwards;
   opacity: 0;
+  /* Enable HDR */
+  dynamic-range-limit: no-limit;
 }
 
 :host([delay="1"]) { animation-delay: 0.2s; }
@@ -45,13 +48,13 @@
 .figure-svg {
   width: 100%;
   height: 100%;
-  color: var(--color-white, #FFFFFF);
+  color: var(--color-white, oklch(1 0 0));
   transition: transform 0.4s ease, filter 0.4s ease;
 }
 
 :host([selected]) ::slotted(svg),
 :host([selected]) .figure-svg {
-  filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.2));
+  filter: drop-shadow(0 0 20px oklch(1 0 0 / 0.2));
 }
 
 :host(:hover) ::slotted(svg),
@@ -68,7 +71,7 @@
 .line {
   width: var(--card-line-width, 120px);
   height: 2px;
-  background: var(--color-white, #FFFFFF);
+  background: var(--color-white, oklch(1 0 0));
   margin-bottom: 1.25rem;
   opacity: 0.5;
   transition: all 0.4s ease;
@@ -98,21 +101,21 @@
   font-size: var(--font-size-2xl, 1.5rem);
   font-weight: 400;
   font-style: italic;
-  color: var(--color-white, #FFFFFF);
+  color: var(--color-white, oklch(1 0 0));
   letter-spacing: 0.02em;
   transition: all 0.3s ease;
 }
 
 :host([selected]) .title,
 :host([playing]) .title {
-  text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+  text-shadow: 0 0 20px oklch(1 0 0 / 0.3);
 }
 
 .subtitle {
   font-family: var(--font-body, 'Cormorant Garamond', serif);
   font-size: var(--font-size-sm, 0.8rem);
   font-weight: 300;
-  color: var(--color-white-soft, rgba(255, 255, 255, 0.85));
+  color: var(--color-white-soft, oklch(1 0 0 / 0.85));
   letter-spacing: 0.05em;
 }
 
@@ -123,7 +126,7 @@
   left: 50%;
   width: 0;
   height: 0;
-  background: rgba(255, 255, 255, 0.15);
+  background: oklch(1 0 0 / 0.15);
   border-radius: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
@@ -156,8 +159,39 @@
 }
 
 @keyframes line-pulse {
-  0%, 100% { opacity: 0.8; box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
-  50% { opacity: 1; box-shadow: 0 0 15px rgba(255, 255, 255, 0.5); }
+  0%, 100% { opacity: 0.8; box-shadow: 0 0 0 oklch(1 0 0 / 0); }
+  50% { opacity: 1; box-shadow: 0 0 15px oklch(1 0 0 / 0.5); }
+}
+
+/* HDR Enhancement - Peak brightness on HDR displays */
+@media (dynamic-range: high) {
+  ::slotted(svg),
+  .figure-svg {
+    color: var(--hdr-white-peak, oklch(1.5 0 0));
+  }
+  
+  :host([selected]) ::slotted(svg),
+  :host([selected]) .figure-svg {
+    filter: drop-shadow(0 0 30px oklch(1.3 0 0 / 0.4));
+  }
+  
+  .line {
+    background: var(--hdr-white-vivid, oklch(1.3 0 0));
+  }
+  
+  .title {
+    color: var(--hdr-white-peak, oklch(1.5 0 0));
+  }
+  
+  :host([selected]) .title,
+  :host([playing]) .title {
+    text-shadow: 0 0 30px oklch(1.3 0 0 / 0.5);
+  }
+  
+  @keyframes line-pulse {
+    0%, 100% { opacity: 0.8; box-shadow: 0 0 0 oklch(1.3 0 0 / 0); }
+    50% { opacity: 1; box-shadow: 0 0 25px oklch(1.5 0 0 / 0.6); }
+  }
 }
 
 /* Responsive */

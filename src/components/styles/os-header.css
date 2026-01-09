@@ -17,12 +17,18 @@
   padding: 0.35rem 0.75rem;
   border-radius: 20px;
   font-weight: 500;
+  cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .badge:hover {
-  border-color: var(--color-white-soft, rgba(255, 255, 255, 0.85));
-  color: var(--color-white-soft, rgba(255, 255, 255, 0.85));
+  border-color: var(--color-primary, #C84536);
+  color: var(--color-primary, #C84536);
+  background: rgba(200, 69, 54, 0.1);
+}
+
+.badge:active {
+  transform: scale(0.95);
 }
 
 .clock {

@@ -9,13 +9,14 @@
 
 :root {
   /* Core palette - "Her" aesthetic */
-  --color-red: #C84536;
-  --color-red-deep: #B33D2F;
-  --color-cream: #F5E6DC;
-  --color-white: #FFFFFF;
-  --color-white-soft: rgba(255, 255, 255, 0.85);
-  --color-white-faint: rgba(255, 255, 255, 0.4);
-  --color-white-ghost: rgba(255, 255, 255, 0.15);
+  /* OKLCH Colors - HDR enabled */
+  --color-red: oklch(0.55 0.155 25);
+  --color-red-deep: oklch(0.48 0.145 23);
+  --color-cream: oklch(0.93 0.025 75);
+  --color-white: oklch(1 0 0);
+  --color-white-soft: oklch(1 0 0 / 0.85);
+  --color-white-faint: oklch(1 0 0 / 0.4);
+  --color-white-ghost: oklch(1 0 0 / 0.15);
 
   /* Typography */
   --font-display: 'Bodoni Moda', 'Georgia', serif;

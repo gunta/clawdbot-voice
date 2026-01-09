@@ -79,6 +79,7 @@ class SpeechController extends EventTarget {
       this.#isSpeaking = true;
       this.#elements.transcription.update(e.detail.text, false);
       this.#elements.waveform.active = true;
+      if (this.#elements.gpuWaveform) this.#elements.gpuWaveform.active = true;
       
       // Play chime when AI starts speaking
       if (this.#selectedVoice === 'her') {
@@ -95,6 +96,7 @@ class SpeechController extends EventTarget {
     speechSynthesis.addEventListener('end', () => {
       this.#isSpeaking = false;
       this.#elements.waveform.active = false;
+      if (this.#elements.gpuWaveform) this.#elements.gpuWaveform.active = false;
       this.dispatchEvent(new CustomEvent('idle'));
     });
   }

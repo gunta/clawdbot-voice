@@ -5,11 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>CLAWD OS1</title>
   
-  <!-- DEV MODE: Disable caching (remove for production) -->
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
-  
   <!-- Native app feel -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -21,8 +16,24 @@
   
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  
+  <!-- Favicons - Cross-browser support -->
+  <!-- Standard favicon for most browsers -->
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
+  <!-- SVG favicon for modern browsers (scales perfectly) -->
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg">
+  <!-- PNG fallback for browsers that don't support SVG favicons -->
+  <link rel="shortcut icon" href="favicon.png">
+  
+  <!-- Apple Touch Icons -->
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+  
+  <!-- Microsoft Tiles -->
+  <meta name="msapplication-TileColor" content="#C84536">
+  <meta name="msapplication-TileImage" content="icons/mstile-150x150.png">
+  <meta name="msapplication-config" content="browserconfig.xml">
   
   <!-- Fonts: Self-hosted for full offline support -->
   <link rel="stylesheet" href="src/fonts/fonts.css">
@@ -127,6 +138,9 @@
         </template>
       </wave-form>
 
+      <!-- GPU Waveform - WebGPU HDR powered, always animated -->
+      <gpu-waveform id="gpuWaveform"></gpu-waveform>
+
       <!-- Transcription -->
       <transcription-display id="transcription">
         <template shadowrootmode="open">
@@ -174,6 +188,102 @@
       <span slot="author">by gunta</span>
     </app-footer>
   </div>
+
+  <!-- Files App - Spatial File Browser -->
+  <files-app id="filesApp">
+    <template shadowrootmode="open">
+      <link rel="stylesheet" href="src/components/styles/files-app.css">
+      
+      <div class="header">
+        <div class="header-left">
+          <button class="back-btn" type="button" aria-label="Go back">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M15 18L9 12L15 6" />
+            </svg>
+            <span class="back-btn-text">back</span>
+          </button>
+          <span class="title">files</span>
+        </div>
+        <div class="path">/</div>
+        <button class="close-btn" type="button" aria-label="Close files">
+          <svg viewBox="0 0 24 24" fill="none">
+            <line x1="6" y1="6" x2="18" y2="18" />
+            <line x1="18" y1="6" x2="6" y2="18" />
+          </svg>
+        </button>
+      </div>
+      
+      <div class="canvas-container">
+        <div class="canvas"></div>
+        <div class="zoom-indicator">100%</div>
+      </div>
+      
+      <div class="time-scrubber">
+        <span class="time-label">past</span>
+        <div class="time-slider">
+          <div class="time-slider-fill"></div>
+          <div class="time-slider-thumb"></div>
+        </div>
+        <span class="time-label">now</span>
+      </div>
+    </template>
+  </files-app>
+
+  <!-- Launchpad - App Launcher -->
+  <launchpad-view id="launchpad">
+    <template shadowrootmode="open">
+      <link rel="stylesheet" href="src/components/styles/launchpad-view.css">
+      
+      <div class="header">
+        <span class="title">apps</span>
+        <button class="close-btn" type="button" aria-label="Close launchpad">
+          <svg viewBox="0 0 24 24" fill="none">
+            <line x1="6" y1="6" x2="18" y2="18" />
+            <line x1="18" y1="6" x2="6" y2="18" />
+          </svg>
+        </button>
+      </div>
+      
+      <div class="apps-grid">
+        <!-- Files App -->
+        <div class="app-card" data-app="files" tabindex="0" role="button" aria-label="Open Files">
+          <div class="app-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M3 7V17C3 18.1046 3.89543 19 5 19H19C20.1046 19 21 18.1046 21 17V9C21 7.89543 20.1046 7 19 7H13L11 5H5C3.89543 5 3 5.89543 3 7Z" />
+            </svg>
+          </div>
+          <span class="app-name">files</span>
+        </div>
+        
+        <!-- Voice App (current view) -->
+        <div class="app-card" data-app="voice" data-active="true" tabindex="0" role="button" aria-label="Open Voice">
+          <div class="app-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 1C10.34 1 9 2.34 9 4V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V4C15 2.34 13.66 1 12 1Z" />
+              <path d="M19 10V12C19 15.87 15.87 19 12 19C8.13 19 5 15.87 5 12V10" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
+          </div>
+          <span class="app-name">voice</span>
+        </div>
+        
+        <!-- Settings App -->
+        <div class="app-card" data-app="settings" tabindex="0" role="button" aria-label="Open Settings">
+          <div class="app-icon">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15C19.2 15.3 19.1 15.7 19.1 16.1C19.1 16.8 19.4 17.4 19.8 17.9L19.9 18C20.3 18.4 20.5 18.9 20.5 19.5C20.5 20.1 20.3 20.6 19.9 21C19.5 21.4 19 21.6 18.4 21.6C17.8 21.6 17.3 21.4 16.9 21L16.8 20.9C16.3 20.5 15.7 20.2 15 20.2C14.6 20.2 14.2 20.3 13.9 20.5C13.3 20.8 12.9 21.4 12.8 22V22.1C12.8 23.2 11.9 24 10.8 24H10.5C9.4 24 8.6 23.2 8.6 22.1V22C8.5 21.4 8.1 20.8 7.5 20.5C7.2 20.3 6.8 20.2 6.4 20.2C5.7 20.2 5.1 20.5 4.6 20.9L4.5 21C4.1 21.4 3.6 21.6 3 21.6C2.4 21.6 1.9 21.4 1.5 21C1.1 20.6 0.9 20.1 0.9 19.5C0.9 18.9 1.1 18.4 1.5 18L1.6 17.9C2 17.4 2.3 16.8 2.3 16.1C2.3 15.7 2.2 15.3 2 15C1.7 14.4 1.1 14 0.5 13.9H0.4C-0.7 13.9 -1.5 13 -1.5 11.9V11.6C-1.5 10.5 -0.7 9.7 0.4 9.7H0.5C1.1 9.6 1.7 9.2 2 8.6C2.2 8.3 2.3 7.9 2.3 7.5C2.3 6.8 2 6.2 1.6 5.7L1.5 5.6C1.1 5.2 0.9 4.7 0.9 4.1C0.9 3.5 1.1 3 1.5 2.6C1.9 2.2 2.4 2 3 2C3.6 2 4.1 2.2 4.5 2.6L4.6 2.7C5.1 3.1 5.7 3.4 6.4 3.4" />
+            </svg>
+          </div>
+          <span class="app-name">settings</span>
+        </div>
+      </div>
+    </template>
+  </launchpad-view>
+
+  <!-- Text Editor - Native text editor for files -->
+  <text-editor id="textEditor"></text-editor>
 
   <!-- Clock Modal - Bold, simple analog clock -->
   <clock-modal id="clockModal">
@@ -238,19 +348,5 @@
 
   <!-- App Entry Point -->
   <script type="module" src="src/app.js"></script>
-  
-  <!-- DEV MODE: Clear service worker cache (remove for production) -->
-  <script>
-    const DEV_MODE = true;
-    if (DEV_MODE && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(regs => {
-        regs.forEach(reg => reg.unregister());
-      });
-      caches.keys().then(keys => {
-        keys.forEach(key => caches.delete(key));
-      });
-      console.log('[DEV] Service worker & caches cleared');
-    }
-  </script>
 </body>
 </html>

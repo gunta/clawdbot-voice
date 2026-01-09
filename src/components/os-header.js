@@ -7,6 +7,7 @@ import { chimes } from '../services/index.js';
 
 export class OsHeader extends HTMLElement {
   #clockElement = null;
+  #badgeElement = null;
   #intervalId = null;
 
   static get observedAttributes() {
@@ -15,6 +16,7 @@ export class OsHeader extends HTMLElement {
 
   connectedCallback() {
     this.#clockElement = this.shadowRoot?.querySelector('.clock');
+    this.#badgeElement = this.shadowRoot?.querySelector('.badge');
     this.#updateClock();
     this.#intervalId = setInterval(() => this.#updateClock(), 1000);
     
@@ -25,6 +27,14 @@ export class OsHeader extends HTMLElement {
       const clockModal = document.querySelector('clock-modal');
       if (clockModal) {
         clockModal.open();
+      }
+    });
+    
+    // Open launchpad when badge is clicked
+    this.#badgeElement?.addEventListener('click', () => {
+      const launchpad = document.querySelector('launchpad-view');
+      if (launchpad) {
+        launchpad.open();
       }
     });
   }
