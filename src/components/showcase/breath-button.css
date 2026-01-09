@@ -1,0 +1,88 @@
+/**
+ * Breath Button - Elegant minimal version
+ * Simple border that breathes
+ */
+
+:host {
+  display: inline-block;
+}
+
+.breath-btn {
+  position: relative;
+  padding: 14px 36px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-display, 'Bodoni Moda', serif);
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--color-white, #FFFFFF);
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.breath-membrane {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--color-white, #FFFFFF);
+  border-radius: 100px;
+  opacity: 0.5;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: breathe 4s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.02); opacity: 0.6; }
+}
+
+.breath-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.breath-text {
+  letter-spacing: 0.08em;
+  transition: letter-spacing 0.3s ease;
+}
+
+.breath-aura {
+  display: none;
+}
+
+/* Hover */
+.breath-btn:hover .breath-membrane {
+  opacity: 1;
+  transform: scale(1.04);
+  animation: none;
+}
+
+.breath-btn:hover .breath-text {
+  letter-spacing: 0.12em;
+}
+
+/* Active */
+.breath-btn:active .breath-membrane {
+  transform: scale(0.98);
+  opacity: 0.8;
+}
+
+/* Variants */
+:host([variant="secondary"]) .breath-membrane {
+  border-style: dashed;
+}
+
+:host([variant="ghost"]) .breath-membrane {
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Focus */
+.breath-btn:focus-visible .breath-membrane {
+  outline: 1px solid var(--color-white, #FFFFFF);
+  outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breath-membrane { animation: none; }
+}

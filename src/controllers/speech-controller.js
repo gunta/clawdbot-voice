@@ -7,7 +7,8 @@ import {
   speechRecognition, 
   speechSynthesis, 
   generateResponse, 
-  haptic 
+  haptic,
+  chimes 
 } from '../services/index.js';
 
 class SpeechController extends EventTarget {
@@ -37,6 +38,7 @@ class SpeechController extends EventTarget {
       this.#elements.speakBtn.listening = true;
       this.#elements.transcription.active = true;
       haptic('light');
+      chimes.listening();
       this.dispatchEvent(new CustomEvent('listening-start'));
     });
 
@@ -77,6 +79,14 @@ class SpeechController extends EventTarget {
       this.#isSpeaking = true;
       this.#elements.transcription.update(e.detail.text, false);
       this.#elements.waveform.active = true;
+      
+      // Play chime when AI starts speaking
+      if (this.#selectedVoice === 'her') {
+        chimes.herSpeaking();
+      } else {
+        chimes.clawdSpeaking();
+      }
+      
       this.dispatchEvent(new CustomEvent('speaking-start', { 
         detail: { voice: this.#selectedVoice } 
       }));

@@ -99,4 +99,27 @@
       gap: var(--space-xl);
     }
   }
+
+  /* TV / Large landscape displays */
+  @media (min-width: 1200px) and (orientation: landscape) {
+    .app-container {
+      padding: var(--space-3xl) var(--space-4xl);
+    }
+
+    .voice-cards-container {
+      gap: var(--space-4xl);
+    }
+
+    .app-main {
+      gap: var(--space-3xl);
+    }
+  }
+
+  /* Very large screens (4K TVs) */
+  @media (min-width: 1920px) {
+    .app-container {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+  }
 }

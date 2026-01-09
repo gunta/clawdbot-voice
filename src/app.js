@@ -3,7 +3,7 @@
  * Orchestrates voice experience
  */
 
-import { isReturningUser, speechSynthesis, audioPlayer } from './services/index.js';
+import { isReturningUser, speechSynthesis, wakeLockService, chimes } from './services/index.js';
 import { voiceController, speechController, keyboardController } from './controllers/index.js';
 import './components/index.js';
 
@@ -15,6 +15,8 @@ class ClawdOS1App {
     this.#initControllers();
     this.#setupKeyboard();
     this.#setupServiceWorker();
+    this.#initWakeLock();
+    this.#initChimes();
     this.#greetReturningUser();
 
     console.log('[CLAWD] OS1 initialized');
@@ -100,6 +102,18 @@ class ClawdOS1App {
         console.warn('[SW] Failed:', err);
       }
     }
+  }
+
+  #initWakeLock() {
+    // Keep screen awake while app is open (for continuous listening)
+    wakeLockService.init();
+  }
+
+  #initChimes() {
+    // Initialize clock chimes at :00 and :30
+    chimes.initClock();
+    // Expose for testing: window.clawdOS1.chimes.listening() etc.
+    this.chimes = chimes;
   }
 
   #greetReturningUser() {

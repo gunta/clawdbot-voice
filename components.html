@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>CLAWD OS1 — Component Laboratory</title>
+  
+  <!-- Native app feel -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#C84536">
+  
+  <!-- Fonts -->
+  <link rel="stylesheet" href="src/fonts/fonts.css">
+  
+  <!-- Component Laboratory Styles -->
+  <link rel="stylesheet" href="src/styles/components-showcase.css">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="tendril-nav" id="tendrilNav">
+    <svg class="tendril-lines" viewBox="0 0 100 600" preserveAspectRatio="none">
+      <path class="tendril-path" d="M50,0 Q30,100 50,200 Q70,300 50,400 Q30,500 50,600" />
+    </svg>
+    <div class="nav-node active" data-section="hero">
+      <span class="node-pulse"></span>
+      <span class="node-core"></span>
+      <span class="node-label">Origin</span>
+    </div>
+    <div class="nav-node" data-section="breath">
+      <span class="node-pulse"></span>
+      <span class="node-core"></span>
+      <span class="node-label">Breath</span>
+    </div>
+    <div class="nav-node" data-section="fluid">
+      <span class="node-pulse"></span>
+      <span class="node-core"></span>
+      <span class="node-label">Fluid</span>
+    </div>
+    <div class="nav-node" data-section="neural">
+      <span class="node-pulse"></span>
+      <span class="node-core"></span>
+      <span class="node-label">Neural</span>
+    </div>
+    <div class="nav-node" data-section="orbital">
+      <span class="node-pulse"></span>
+      <span class="node-core"></span>
+      <span class="node-label">Orbital</span>
+    </div>
+    <div class="nav-node" data-section="temporal">
+      <span class="node-pulse"></span>
+      <span class="node-core"></span>
+      <span class="node-label">Temporal</span>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="laboratory-main">
+    
+    <!-- Hero Section -->
+    <section class="lab-section hero-section" id="hero">
+      <div class="section-content">
+        <h1 class="hero-title">
+          <span class="title-line">Component</span>
+          <span class="title-line">Laboratory</span>
+        </h1>
+        <p class="hero-subtitle">Where interfaces learn to breathe</p>
+        <div class="hero-badge">
+          <span class="badge-text">OS1</span>
+          <span class="badge-version">v.∞</span>
+        </div>
+      </div>
+      <div class="scroll-indicator">
+        <span class="scroll-text">descend</span>
+        <svg class="scroll-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M12 5v14M5 12l7 7 7-7" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- BREATH COMPONENTS - Living, breathing UI elements               -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section class="lab-section" id="breath">
+      <header class="section-header">
+        <span class="section-number">01</span>
+        <h2 class="section-title">Breath Components</h2>
+        <p class="section-desc">UI that inhales and exhales with you</p>
+      </header>
+
+      <div class="component-grid">
+        <!-- Breath Button -->
+        <div class="component-card">
+          <h3 class="card-title">Breath Button</h3>
+          <div class="card-demo">
+            <breath-button id="breathBtn1">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/breath-button.css">
+                <button class="breath-btn">
+                  <span class="breath-membrane"></span>
+                  <span class="breath-inner">
+                    <span class="breath-text"><slot>Inhale</slot></span>
+                  </span>
+                  <span class="breath-aura"></span>
+                </button>
+              </template>
+              Activate
+            </breath-button>
+          </div>
+          <p class="card-desc">Responds to hover proximity. Expands on inhale, contracts on click.</p>
+        </div>
+
+        <!-- Pulse Badge -->
+        <div class="component-card">
+          <h3 class="card-title">Pulse Badge</h3>
+          <div class="card-demo badge-demo">
+            <pulse-badge status="alive">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/pulse-badge.css">
+                <span class="badge">
+                  <span class="badge-heartbeat"></span>
+                  <span class="badge-heartbeat delay"></span>
+                  <span class="badge-core"><slot>Status</slot></span>
+                </span>
+              </template>
+              Alive
+            </pulse-badge>
+            <pulse-badge status="dormant">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/pulse-badge.css">
+                <span class="badge">
+                  <span class="badge-heartbeat"></span>
+                  <span class="badge-heartbeat delay"></span>
+                  <span class="badge-core"><slot>Status</slot></span>
+                </span>
+              </template>
+              Dormant
+            </pulse-badge>
+            <pulse-badge status="critical">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/pulse-badge.css">
+                <span class="badge">
+                  <span class="badge-heartbeat"></span>
+                  <span class="badge-heartbeat delay"></span>
+                  <span class="badge-core"><slot>Status</slot></span>
+                </span>
+              </template>
+              Critical
+            </pulse-badge>
+          </div>
+          <p class="card-desc">Heartbeat emanation indicates system vitality. Rhythm changes with status.</p>
+        </div>
+
+        <!-- Membrane Modal Trigger -->
+        <div class="component-card">
+          <h3 class="card-title">Membrane Modal</h3>
+          <div class="card-demo">
+            <breath-button id="membraneModalTrigger" variant="secondary">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/breath-button.css">
+                <button class="breath-btn">
+                  <span class="breath-membrane"></span>
+                  <span class="breath-inner">
+                    <span class="breath-text"><slot>Open</slot></span>
+                  </span>
+                  <span class="breath-aura"></span>
+                </button>
+              </template>
+              Stretch Open
+            </breath-button>
+          </div>
+          <p class="card-desc">Modal that stretches into existence like organic tissue.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- FLUID COMPONENTS - Liquid, morphing interfaces                  -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section class="lab-section" id="fluid">
+      <header class="section-header">
+        <span class="section-number">02</span>
+        <h2 class="section-title">Fluid Components</h2>
+        <p class="section-desc">Interfaces that flow like liquid mercury</p>
+      </header>
+
+      <div class="component-grid">
+        <!-- Fluid Glass Card -->
+        <div class="component-card wide">
+          <h3 class="card-title">Fluid Glass</h3>
+          <div class="card-demo">
+            <fluid-glass id="fluidCard1">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/fluid-glass.css">
+                <div class="glass-container">
+                  <div class="glass-surface">
+                    <div class="glass-reflection"></div>
+                    <div class="glass-distortion"></div>
+                  </div>
+                  <div class="glass-content">
+                    <slot></slot>
+                  </div>
+                  <div class="glass-edge"></div>
+                </div>
+              </template>
+              <div class="fluid-demo-content">
+                <span class="fluid-icon">◈</span>
+                <span class="fluid-label">Drag me around</span>
+                <span class="fluid-hint">Watch the surface tension</span>
+              </div>
+            </fluid-glass>
+          </div>
+          <p class="card-desc">Glass that warps and refracts based on movement. Surface tension responds to interaction.</p>
+        </div>
+
+        <!-- Phase Toggle -->
+        <div class="component-card">
+          <h3 class="card-title">Phase Toggle</h3>
+          <div class="card-demo toggle-demo">
+            <phase-toggle id="phaseToggle1">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/phase-toggle.css">
+                <button class="phase-toggle" role="switch" aria-checked="false">
+                  <span class="phase-track">
+                    <span class="phase-matter solid"></span>
+                    <span class="phase-matter liquid"></span>
+                    <span class="phase-matter gas"></span>
+                  </span>
+                  <span class="phase-thumb">
+                    <span class="thumb-core"></span>
+                    <span class="thumb-particles"></span>
+                  </span>
+                  <span class="phase-labels">
+                    <span class="label-off">Off</span>
+                    <span class="label-on">On</span>
+                  </span>
+                </button>
+              </template>
+            </phase-toggle>
+          </div>
+          <p class="card-desc">Toggle that phases through matter states: solid → liquid → gas.</p>
+        </div>
+
+        <!-- Spectrum Slider -->
+        <div class="component-card">
+          <h3 class="card-title">Spectrum Slider</h3>
+          <div class="card-demo">
+            <spectrum-slider id="spectrumSlider1" min="0" max="100" value="50">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/spectrum-slider.css">
+                <div class="slider-container">
+                  <div class="slider-track">
+                    <div class="track-energy"></div>
+                    <div class="track-trail"></div>
+                    <div class="track-glow"></div>
+                  </div>
+                  <div class="slider-thumb">
+                    <span class="thumb-ring"></span>
+                    <span class="thumb-center"></span>
+                    <span class="thumb-sparks"></span>
+                  </div>
+                  <div class="slider-value"><slot>50</slot></div>
+                </div>
+              </template>
+              50
+            </spectrum-slider>
+          </div>
+          <p class="card-desc">Leaves energy trails as you drag. Intensity changes with velocity.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- NEURAL COMPONENTS - Thinking, processing interfaces             -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section class="lab-section" id="neural">
+      <header class="section-header">
+        <span class="section-number">03</span>
+        <h2 class="section-title">Neural Components</h2>
+        <p class="section-desc">Interfaces that think and process</p>
+      </header>
+
+      <div class="component-grid">
+        <!-- Nerve Input -->
+        <div class="component-card wide">
+          <h3 class="card-title">Nerve Input</h3>
+          <div class="card-demo">
+            <nerve-input id="nerveInput1" placeholder="Start typing to see neural activity...">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/nerve-input.css">
+                <div class="nerve-container">
+                  <div class="nerve-field">
+                    <input type="text" class="nerve-input" />
+                    <div class="nerve-synapses">
+                      <span class="synapse s1"></span>
+                      <span class="synapse s2"></span>
+                      <span class="synapse s3"></span>
+                      <span class="synapse s4"></span>
+                      <span class="synapse s5"></span>
+                    </div>
+                    <div class="nerve-activity"></div>
+                  </div>
+                  <label class="nerve-label"><slot name="label">Neural pathway</slot></label>
+                  <div class="nerve-underline">
+                    <span class="underline-static"></span>
+                    <span class="underline-active"></span>
+                  </div>
+                </div>
+              </template>
+              <span slot="label">Thought Stream</span>
+            </nerve-input>
+          </div>
+          <p class="card-desc">Synapses fire as you type. Neural activity visualizes processing.</p>
+        </div>
+
+        <!-- Void Select -->
+        <div class="component-card">
+          <h3 class="card-title">Void Select</h3>
+          <div class="card-demo">
+            <void-select id="voidSelect1">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/void-select.css">
+                <div class="void-container">
+                  <button class="void-trigger">
+                    <span class="void-selected">Choose dimension</span>
+                    <span class="void-arrow">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M6 9l6 6 6-6" stroke-width="2" stroke-linecap="round"/>
+                      </svg>
+                    </span>
+                    <span class="void-portal"></span>
+                  </button>
+                  <div class="void-dropdown">
+                    <div class="void-singularity"></div>
+                    <div class="void-options">
+                      <slot></slot>
+                    </div>
+                  </div>
+                </div>
+              </template>
+              <div data-value="alpha">α Dimension Alpha</div>
+              <div data-value="beta">β Dimension Beta</div>
+              <div data-value="gamma">γ Dimension Gamma</div>
+              <div data-value="delta">δ Dimension Delta</div>
+            </void-select>
+          </div>
+          <p class="card-desc">Options emerge from a singularity. Selected item gets pulled back in.</p>
+        </div>
+
+        <!-- Ripple List -->
+        <div class="component-card">
+          <h3 class="card-title">Ripple List</h3>
+          <div class="card-demo">
+            <ripple-list id="rippleList1">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/ripple-list.css">
+                <ul class="ripple-container">
+                  <slot></slot>
+                </ul>
+                <svg class="connection-lines" viewBox="0 0 300 200">
+                  <path class="conn-path" d="M20,30 Q150,30 150,60 Q150,90 20,90" />
+                  <path class="conn-path" d="M20,90 Q150,90 150,120 Q150,150 20,150" />
+                </svg>
+              </template>
+              <li class="ripple-item">
+                <span class="item-node"></span>
+                <span class="item-text">First neural node</span>
+              </li>
+              <li class="ripple-item">
+                <span class="item-node"></span>
+                <span class="item-text">Second neural node</span>
+              </li>
+              <li class="ripple-item">
+                <span class="item-node"></span>
+                <span class="item-text">Third neural node</span>
+              </li>
+            </ripple-list>
+          </div>
+          <p class="card-desc">Hover propagates through connected nodes like neural signals.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ORBITAL COMPONENTS - Radial, gravitational interfaces           -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section class="lab-section" id="orbital">
+      <header class="section-header">
+        <span class="section-number">04</span>
+        <h2 class="section-title">Orbital Components</h2>
+        <p class="section-desc">Gravitational pull and radial motion</p>
+      </header>
+
+      <div class="component-grid">
+        <!-- Orbital Menu -->
+        <div class="component-card wide">
+          <h3 class="card-title">Orbital Menu</h3>
+          <div class="card-demo orbital-demo">
+            <orbital-menu id="orbitalMenu1">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/orbital-menu.css">
+                <div class="orbital-container">
+                  <button class="orbital-core">
+                    <span class="core-icon">✦</span>
+                    <span class="core-ring"></span>
+                    <span class="core-ring ring-2"></span>
+                    <span class="core-glow"></span>
+                  </button>
+                  <div class="orbital-items">
+                    <slot></slot>
+                  </div>
+                  <svg class="orbit-paths" viewBox="0 0 300 300">
+                    <circle class="orbit-path" cx="150" cy="150" r="60" />
+                    <circle class="orbit-path" cx="150" cy="150" r="90" />
+                    <circle class="orbit-path" cx="150" cy="150" r="120" />
+                  </svg>
+                </div>
+              </template>
+              <div class="orbital-item" data-orbit="1" data-angle="0">
+                <span class="item-icon">◐</span>
+                <span class="item-label">Home</span>
+              </div>
+              <div class="orbital-item" data-orbit="1" data-angle="72">
+                <span class="item-icon">◑</span>
+                <span class="item-label">Search</span>
+              </div>
+              <div class="orbital-item" data-orbit="1" data-angle="144">
+                <span class="item-icon">◒</span>
+                <span class="item-label">Create</span>
+              </div>
+              <div class="orbital-item" data-orbit="1" data-angle="216">
+                <span class="item-icon">◓</span>
+                <span class="item-label">Profile</span>
+              </div>
+              <div class="orbital-item" data-orbit="1" data-angle="288">
+                <span class="item-icon">◔</span>
+                <span class="item-label">Settings</span>
+              </div>
+            </orbital-menu>
+          </div>
+          <p class="card-desc">Click the core to expand. Items orbit and can be pulled closer.</p>
+        </div>
+
+        <!-- Gravity Card -->
+        <div class="component-card">
+          <h3 class="card-title">Gravity Card</h3>
+          <div class="card-demo">
+            <gravity-card id="gravityCard1">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/gravity-card.css">
+                <div class="gravity-container">
+                  <div class="gravity-field">
+                    <span class="field-line l1"></span>
+                    <span class="field-line l2"></span>
+                    <span class="field-line l3"></span>
+                  </div>
+                  <div class="gravity-surface">
+                    <div class="surface-content">
+                      <slot></slot>
+                    </div>
+                    <div class="surface-shadow"></div>
+                  </div>
+                </div>
+              </template>
+              <div class="gravity-demo-content">
+                <span class="gravity-emoji">🌑</span>
+                <span class="gravity-title">Dark Matter</span>
+                <span class="gravity-sub">Hover to feel the pull</span>
+              </div>
+            </gravity-card>
+          </div>
+          <p class="card-desc">Cursor creates gravitational distortion. Card tilts toward interaction point.</p>
+        </div>
+
+        <!-- Hologram Avatar -->
+        <div class="component-card">
+          <h3 class="card-title">Hologram Avatar</h3>
+          <div class="card-demo avatar-demo">
+            <hologram-avatar id="holoAvatar1" status="online">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/hologram-avatar.css">
+                <div class="holo-container">
+                  <div class="holo-projection">
+                    <div class="holo-scanlines"></div>
+                    <div class="holo-glitch"></div>
+                    <div class="holo-image">
+                      <slot name="image">
+                        <svg viewBox="0 0 100 100" class="default-avatar">
+                          <circle cx="50" cy="35" r="20" fill="currentColor"/>
+                          <path d="M15,90 Q15,55 50,55 Q85,55 85,90" fill="currentColor"/>
+                        </svg>
+                      </slot>
+                    </div>
+                  </div>
+                  <div class="holo-base">
+                    <span class="base-ring"></span>
+                    <span class="base-glow"></span>
+                  </div>
+                  <span class="status-indicator"></span>
+                </div>
+              </template>
+            </hologram-avatar>
+            <hologram-avatar id="holoAvatar2" status="away">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/hologram-avatar.css">
+                <div class="holo-container">
+                  <div class="holo-projection">
+                    <div class="holo-scanlines"></div>
+                    <div class="holo-glitch"></div>
+                    <div class="holo-image">
+                      <slot name="image">
+                        <svg viewBox="0 0 100 100" class="default-avatar">
+                          <circle cx="50" cy="35" r="20" fill="currentColor"/>
+                          <path d="M15,90 Q15,55 50,55 Q85,55 85,90" fill="currentColor"/>
+                        </svg>
+                      </slot>
+                    </div>
+                  </div>
+                  <div class="holo-base">
+                    <span class="base-ring"></span>
+                    <span class="base-glow"></span>
+                  </div>
+                  <span class="status-indicator"></span>
+                </div>
+              </template>
+            </hologram-avatar>
+          </div>
+          <p class="card-desc">Holographic projection with scanlines and occasional glitches.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- TEMPORAL COMPONENTS - Time-aware, progress interfaces           -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <section class="lab-section" id="temporal">
+      <header class="section-header">
+        <span class="section-number">05</span>
+        <h2 class="section-title">Temporal Components</h2>
+        <p class="section-desc">Time flows, progress breathes</p>
+      </header>
+
+      <div class="component-grid">
+        <!-- Aurora Progress -->
+        <div class="component-card wide">
+          <h3 class="card-title">Aurora Progress</h3>
+          <div class="card-demo">
+            <aurora-progress id="auroraProgress1" value="67">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/aurora-progress.css">
+                <div class="aurora-container">
+                  <div class="aurora-track">
+                    <div class="aurora-sky">
+                      <div class="aurora-wave wave-1"></div>
+                      <div class="aurora-wave wave-2"></div>
+                      <div class="aurora-wave wave-3"></div>
+                    </div>
+                    <div class="aurora-fill">
+                      <div class="aurora-shimmer"></div>
+                    </div>
+                    <div class="aurora-stars">
+                      <span class="star"></span><span class="star"></span><span class="star"></span>
+                      <span class="star"></span><span class="star"></span><span class="star"></span>
+                    </div>
+                  </div>
+                  <div class="aurora-label">
+                    <span class="label-value"><slot>67</slot></span>
+                    <span class="label-unit">%</span>
+                  </div>
+                </div>
+              </template>
+              67
+            </aurora-progress>
+          </div>
+          <p class="card-desc">Progress bar with aurora borealis effect. Waves intensify near completion.</p>
+        </div>
+
+        <!-- Prism Tabs -->
+        <div class="component-card wide">
+          <h3 class="card-title">Prism Tabs</h3>
+          <div class="card-demo">
+            <prism-tabs id="prismTabs1">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/prism-tabs.css">
+                <div class="prism-container">
+                  <div class="prism-track">
+                    <div class="prism-light"></div>
+                    <div class="prism-refraction"></div>
+                    <slot></slot>
+                    <div class="prism-indicator"></div>
+                  </div>
+                </div>
+              </template>
+              <button class="prism-tab active" data-tab="past">
+                <span class="tab-icon">◀</span>
+                <span class="tab-text">Past</span>
+              </button>
+              <button class="prism-tab" data-tab="present">
+                <span class="tab-icon">●</span>
+                <span class="tab-text">Present</span>
+              </button>
+              <button class="prism-tab" data-tab="future">
+                <span class="tab-icon">▶</span>
+                <span class="tab-text">Future</span>
+              </button>
+            </prism-tabs>
+          </div>
+          <p class="card-desc">Light refracts through tabs. Selected tab catches and disperses light.</p>
+        </div>
+
+        <!-- Echo Tooltip -->
+        <div class="component-card">
+          <h3 class="card-title">Echo Tooltip</h3>
+          <div class="card-demo">
+            <echo-tooltip id="echoTooltip1" message="Information echoes through time and space">
+              <template shadowrootmode="open">
+                <link rel="stylesheet" href="src/components/showcase/echo-tooltip.css">
+                <div class="echo-trigger">
+                  <slot></slot>
+                  <div class="echo-bubble">
+                    <span class="echo-text"></span>
+                    <span class="echo-ghost echo-1"></span>
+                    <span class="echo-ghost echo-2"></span>
+                    <span class="echo-ghost echo-3"></span>
+                  </div>
+                </div>
+              </template>
+              <span class="tooltip-target">Hover for echo ◉</span>
+            </echo-tooltip>
+          </div>
+          <p class="card-desc">Tooltips that echo and fade like reverberations in a canyon.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="lab-footer">
+      <div class="footer-content">
+        <span class="footer-logo">◈</span>
+        <span class="footer-text">CLAWD OS1 Component Laboratory</span>
+        <span class="footer-version">Experimental Build</span>
+      </div>
+    </footer>
+  </main>
+
+  <!-- Membrane Modal (Global) -->
+  <membrane-modal id="membraneModal">
+    <template shadowrootmode="open">
+      <link rel="stylesheet" href="src/components/showcase/membrane-modal.css">
+      <div class="membrane-backdrop">
+        <div class="membrane-surface">
+          <div class="membrane-stretch"></div>
+          <div class="membrane-content">
+            <slot></slot>
+          </div>
+          <button class="membrane-close">
+            <span class="close-x">×</span>
+            <span class="close-ring"></span>
+          </button>
+        </div>
+      </div>
+    </template>
+    <div class="modal-demo-content">
+      <h2 class="modal-title">You've stretched the membrane</h2>
+      <p class="modal-text">This modal emerges like organic tissue stretching into existence. Notice how it contracts when you close it.</p>
+      <breath-button variant="ghost">
+        <template shadowrootmode="open">
+          <link rel="stylesheet" href="src/components/showcase/breath-button.css">
+          <button class="breath-btn">
+            <span class="breath-membrane"></span>
+            <span class="breath-inner">
+              <span class="breath-text"><slot>Continue</slot></span>
+            </span>
+            <span class="breath-aura"></span>
+          </button>
+        </template>
+        Release membrane
+      </breath-button>
+    </div>
+  </membrane-modal>
+
+  <!-- Component Laboratory Script -->
+  <script type="module" src="src/components/showcase/index.js"></script>
+</body>
+</html>

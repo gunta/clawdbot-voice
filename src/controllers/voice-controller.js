@@ -3,7 +3,7 @@
  * Handles voice selection and audio playback
  */
 
-import { audioPlayer, speechSynthesis, haptic } from '../services/index.js';
+import { audioPlayer, speechSynthesis, haptic, chimes } from '../services/index.js';
 
 class VoiceController extends EventTarget {
   #selectedVoice = 'clawd';
@@ -72,6 +72,8 @@ class VoiceController extends EventTarget {
   }
 
   async play(voice) {
+    console.log('[Voice] Playing:', voice);
+    
     // Stop current audio
     audioPlayer.stop();
     speechSynthesis.cancel();
@@ -85,18 +87,32 @@ class VoiceController extends EventTarget {
       : this.#elements.lobsterCard;
     const audioSrc = card?.getAttribute('audio-src');
 
-    if (!audioSrc) return;
+    console.log('[Voice] Audio src:', audioSrc, 'Card:', card);
+
+    if (!audioSrc) {
+      console.warn('[Voice] No audio source found');
+      return;
+    }
 
     // Update UI
     this.#markPlaying(voice);
     this.#elements.waveform.active = true;
     
+    // Play chime before voice starts
+    if (voice === 'her') {
+      chimes.herSpeaking();
+    } else {
+      chimes.clawdSpeaking();
+    }
+    
+    console.log('[Voice] UI updated, playing state set');
     this.dispatchEvent(new CustomEvent('playing', { detail: { voice } }));
 
     try {
       await audioPlayer.play(audioSrc, {
         title: voice === 'her' ? 'Her' : 'Clawd',
       });
+      console.log('[Voice] Audio started');
     } catch (err) {
       console.error('[Voice] Playback failed:', err);
       this.dispatchEvent(new CustomEvent('error', { detail: { message: 'audio error' } }));

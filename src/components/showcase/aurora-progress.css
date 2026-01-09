@@ -1,0 +1,80 @@
+/**
+ * Aurora Progress - Elegant minimal version
+ * Clean progress bar
+ */
+
+:host {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+}
+
+.aurora-container {
+  position: relative;
+}
+
+.aurora-track {
+  position: relative;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.aurora-sky,
+.aurora-stars {
+  display: none;
+}
+
+.aurora-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: var(--progress, 67%);
+  background: var(--color-white, #FFFFFF);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.aurora-shimmer {
+  display: none;
+}
+
+.aurora-label {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%) translateX(calc(100% + 12px));
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.label-value {
+  font-family: var(--font-body, serif);
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--color-white, #FFFFFF);
+}
+
+.label-unit {
+  font-family: var(--font-body, serif);
+  font-size: 0.7rem;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Complete state - subtle pulse */
+:host([complete]) .aurora-fill {
+  animation: complete-pulse 2s ease infinite;
+}
+
+@keyframes complete-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-fill { animation: none; }
+}

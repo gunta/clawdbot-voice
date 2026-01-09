@@ -1,0 +1,126 @@
+/**
+ * Hologram Avatar - Elegant minimal version
+ * Clean avatar with status ring
+ */
+
+:host {
+  display: inline-block;
+  --avatar-size: 70px;
+}
+
+:host([status="online"]) { --status-opacity: 1; }
+:host([status="away"]) { --status-opacity: 0.5; }
+:host([status="offline"]) { --status-opacity: 0.2; }
+
+.holo-container {
+  position: relative;
+  width: var(--avatar-size);
+  height: calc(var(--avatar-size) + 12px);
+}
+
+.holo-projection {
+  position: relative;
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.holo-scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(255, 255, 255, 0.03) 2px,
+    rgba(255, 255, 255, 0.03) 4px
+  );
+  pointer-events: none;
+}
+
+.holo-glitch {
+  display: none;
+}
+
+.holo-image {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.default-avatar {
+  width: 55%;
+  height: 55%;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+::slotted(img) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.holo-base {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 12px;
+}
+
+.base-ring {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+}
+
+.base-glow {
+  display: none;
+}
+
+.status-indicator {
+  position: absolute;
+  bottom: 8px;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  background: var(--color-white, #FFFFFF);
+  border: 2px solid var(--color-red, #C84536);
+  border-radius: 50%;
+  opacity: var(--status-opacity, 1);
+}
+
+:host([status="online"]) .status-indicator {
+  animation: pulse-dot 2s ease infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+:host([status="away"]) .status-indicator {
+  animation: blink-dot 3s ease infinite;
+}
+
+@keyframes blink-dot {
+  0%, 100% { opacity: var(--status-opacity); }
+  50% { opacity: 0.2; }
+}
+
+/* Hover */
+.holo-container:hover .holo-projection {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-indicator { animation: none; }
+}

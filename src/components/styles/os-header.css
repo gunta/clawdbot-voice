@@ -28,6 +28,50 @@
 .clock {
   font-variant-numeric: tabular-nums;
   font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.clock:hover {
+  color: var(--color-white-soft, rgba(255, 255, 255, 0.85));
+}
+
+.clock:active {
+  color: var(--color-white, #fff);
+}
+
+.hours,
+.minutes {
+  display: inline-block;
+}
+
+.colon {
+  display: inline-block;
+  animation: colon-pulse 2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* Smooth futuristic pulse - breathes like it's alive */
+@keyframes colon-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  25% {
+    opacity: 0.3;
+    transform: scaleY(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  75% {
+    opacity: 0.3;
+    transform: scaleY(0.8);
+  }
 }
 
 @keyframes fade-in {

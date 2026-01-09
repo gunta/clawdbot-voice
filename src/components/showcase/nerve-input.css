@@ -1,0 +1,111 @@
+/**
+ * Nerve Input - Elegant minimal version
+ * Clean underline input
+ */
+
+:host {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+}
+
+.nerve-container {
+  position: relative;
+  padding-top: 16px;
+}
+
+.nerve-field {
+  position: relative;
+}
+
+.nerve-input {
+  width: 100%;
+  padding: 12px 0;
+  background: transparent;
+  border: none;
+  font-family: var(--font-body, 'Cormorant Garamond', serif);
+  font-size: 1.1rem;
+  color: var(--color-white, #FFFFFF);
+  outline: none;
+}
+
+.nerve-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+  font-style: italic;
+}
+
+.nerve-synapses {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 4px;
+}
+
+.synapse {
+  width: 4px;
+  height: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+
+.nerve-activity {
+  display: none;
+}
+
+.nerve-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-family: var(--font-body, serif);
+  font-size: 0.7rem;
+  font-style: italic;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.4);
+  transition: color 0.3s ease;
+}
+
+.nerve-underline {
+  position: relative;
+  height: 1px;
+  width: 100%;
+}
+
+.underline-static {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.underline-active {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 100%;
+  background: var(--color-white, #FFFFFF);
+  transition: width 0.4s ease;
+}
+
+/* Focus */
+.nerve-input:focus ~ .nerve-label {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.nerve-input:focus ~ .nerve-underline .underline-active {
+  width: 100%;
+}
+
+/* Typing - synapses light up */
+:host([typing]) .synapse {
+  background: var(--color-white, #FFFFFF);
+  border-color: var(--color-white, #FFFFFF);
+}
+
+:host([typing]) .synapse.s1 { transition-delay: 0s; }
+:host([typing]) .synapse.s2 { transition-delay: 0.03s; }
+:host([typing]) .synapse.s3 { transition-delay: 0.06s; }
+:host([typing]) .synapse.s4 { transition-delay: 0.09s; }
+:host([typing]) .synapse.s5 { transition-delay: 0.12s; }

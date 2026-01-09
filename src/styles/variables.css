@@ -114,4 +114,28 @@
       --card-line-width: 70px;
     }
   }
+
+  /* TV / Large landscape displays */
+  @media (min-width: 1200px) and (orientation: landscape) {
+    :root {
+      --card-svg-width: 180px;
+      --card-svg-height: 250px;
+      --card-line-width: 150px;
+      --waveform-height: 50px;
+      --wave-bar-height: 20px;
+      --wave-bar-height-active: 45px;
+    }
+  }
+
+  /* Very large screens (4K TVs) */
+  @media (min-width: 1920px) {
+    :root {
+      --card-svg-width: 220px;
+      --card-svg-height: 300px;
+      --card-line-width: 180px;
+      --waveform-height: 60px;
+      --wave-bar-height: 25px;
+      --wave-bar-height-active: 55px;
+    }
+  }
 }

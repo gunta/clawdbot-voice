@@ -1,0 +1,80 @@
+/**
+ * Ripple List - Elegant minimal version
+ * Clean list with connection lines
+ */
+
+:host {
+  display: block;
+}
+
+.ripple-container {
+  position: relative;
+  list-style: none;
+}
+
+.connection-lines {
+  position: absolute;
+  top: 0;
+  left: 8px;
+  width: 2px;
+  height: 100%;
+  pointer-events: none;
+}
+
+.conn-path {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 1;
+}
+
+::slotted(.ripple-item) {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+::slotted(.ripple-item) .item-node {
+  width: 8px;
+  height: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+::slotted(.ripple-item:hover) .item-node {
+  border-color: var(--color-white, #FFFFFF);
+  background: var(--color-white, #FFFFFF);
+}
+
+::slotted(.ripple-item) .item-text {
+  font-family: var(--font-body, 'Cormorant Garamond', serif);
+  font-size: 0.95rem;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.6);
+  transition: color 0.2s ease;
+}
+
+::slotted(.ripple-item:hover) .item-text {
+  color: var(--color-white, #FFFFFF);
+}
+
+/* Ripple propagation - subtle opacity change */
+:host([ripple-from="0"]) ::slotted(.ripple-item:nth-child(2)) .item-node,
+:host([ripple-from="0"]) ::slotted(.ripple-item:nth-child(3)) .item-node {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+:host([ripple-from="1"]) ::slotted(.ripple-item:nth-child(1)) .item-node,
+:host([ripple-from="1"]) ::slotted(.ripple-item:nth-child(3)) .item-node {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+:host([ripple-from="2"]) ::slotted(.ripple-item:nth-child(1)) .item-node,
+:host([ripple-from="2"]) ::slotted(.ripple-item:nth-child(2)) .item-node {
+  border-color: rgba(255, 255, 255, 0.6);
+}

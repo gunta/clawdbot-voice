@@ -1,13 +1,21 @@
 /**
  * Audio Player Service
- * Handles audio playback with events and media session integration
+ * Handles audio playback with Web Audio analysis
  */
 
-import { wakeLockService } from './wake-lock.js';
+import { audioAnalyzer } from './audio-analyzer.js';
 
 class AudioPlayerService extends EventTarget {
   #audio = null;
   #isPlaying = false;
+
+  constructor() {
+    super();
+    // Create a reusable audio element
+    this.#audio = new Audio();
+    this.#audio.addEventListener('ended', () => this.#handleEnded());
+    this.#audio.addEventListener('error', (e) => this.#handleError(e));
+  }
 
   /**
    * Play an audio file
@@ -19,11 +27,8 @@ class AudioPlayerService extends EventTarget {
     // Stop any current playback
     this.stop();
 
-    // Request wake lock
-    await wakeLockService.request();
-
-    // Create audio element
-    this.#audio = new Audio(src);
+    // Set new source
+    this.#audio.src = src;
     this.#isPlaying = true;
 
     // Setup media session
@@ -31,11 +36,10 @@ class AudioPlayerService extends EventTarget {
       this.#setupMediaSession(options);
     }
 
-    // Handle events
-    this.#audio.addEventListener('ended', () => this.#handleEnded());
-    this.#audio.addEventListener('error', (e) => this.#handleError(e));
-
     try {
+      // Start simulated audio analysis for visualization
+      audioAnalyzer.startSpeechAnalysis();
+      
       await this.#audio.play();
       this.dispatchEvent(new CustomEvent('play', { detail: { src } }));
     } catch (err) {
@@ -49,14 +53,13 @@ class AudioPlayerService extends EventTarget {
    * Stop current playback
    */
   stop() {
-    if (this.#audio) {
+    if (this.#audio && this.#isPlaying) {
       this.#audio.pause();
       this.#audio.currentTime = 0;
-      this.#audio = null;
     }
 
     this.#isPlaying = false;
-    wakeLockService.release();
+    audioAnalyzer.stopAnalysis();
     
     this.dispatchEvent(new CustomEvent('stop'));
   }
@@ -71,13 +74,13 @@ class AudioPlayerService extends EventTarget {
 
   #handleEnded() {
     this.#isPlaying = false;
-    wakeLockService.release();
+    audioAnalyzer.stopAnalysis();
     this.dispatchEvent(new CustomEvent('ended'));
   }
 
   #handleError(error) {
     this.#isPlaying = false;
-    wakeLockService.release();
+    audioAnalyzer.stopAnalysis();
     this.dispatchEvent(new CustomEvent('error', { detail: { error } }));
   }
 

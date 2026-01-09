@@ -1,0 +1,267 @@
+/**
+ * Clock Modal - Her OS1 Analog Clock
+ * Bold, simple, elegant fullscreen timepiece
+ */
+
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 100);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-red, #C84536);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+:host([open]) {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Close button - top right, large tap target */
+.close-btn {
+  position: absolute;
+  top: max(env(safe-area-inset-top, 16px), 16px);
+  right: max(env(safe-area-inset-right, 16px), 16px);
+  width: 48px;
+  height: 48px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.close-btn:hover {
+  border-color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.close-btn:active {
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.close-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke: rgba(255, 255, 255, 0.7);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transition: stroke 0.2s ease;
+}
+
+.close-btn:hover svg {
+  stroke: rgba(255, 255, 255, 0.95);
+}
+
+.close-btn:active svg {
+  stroke: #fff;
+}
+
+/* Date display - human greeting at top */
+.date-display {
+  position: absolute;
+  top: max(calc(env(safe-area-inset-top, 20px) + 80px), 100px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-display, 'Bodoni Moda', Georgia, serif);
+  font-size: clamp(1.1rem, 4vw, 1.6rem);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: center;
+  max-width: 90%;
+  line-height: 1.4;
+  cursor: default;
+}
+
+/* Clock container - no pointer events so clicks pass through to backdrop */
+.clock-container {
+  position: relative;
+  width: min(70vw, 70vh);
+  height: min(70vw, 70vh);
+  max-width: 480px;
+  max-height: 480px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Main clock SVG */
+.clock-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Clock face - bold outer ring */
+.clock-face {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 3;
+}
+
+/* Hour markers - bold */
+.hour-marker {
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+/* Roman numerals - bold */
+.numeral {
+  fill: rgba(255, 255, 255, 0.9);
+  font-family: var(--font-display, 'Bodoni Moda', Georgia, serif);
+  font-size: 18px;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+/* Clock center */
+.center-dot {
+  fill: rgba(255, 255, 255, 0.95);
+}
+
+/* Clock hands - bold and clean */
+.hand {
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-linecap: round;
+  fill: none;
+  transform-origin: center;
+}
+
+.hand-hour {
+  stroke-width: 5;
+}
+
+.hand-minute {
+  stroke-width: 4;
+}
+
+.hand-second {
+  stroke: rgba(255, 255, 255, 0.6);
+  stroke-width: 2;
+}
+
+/* Digital time below clock */
+.digital-time {
+  position: absolute;
+  bottom: max(calc(env(safe-area-inset-bottom, 20px) + 50px), 70px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-body, 'Cormorant Garamond', Georgia, serif);
+  font-size: clamp(0.85rem, 2vw, 1rem);
+  font-weight: 300;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.35);
+  text-transform: uppercase;
+  cursor: default;
+}
+
+/* Entry animation */
+:host([open]) .clock-container {
+  animation: clock-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+:host([open]) .date-display {
+  animation: fade-down 0.4s ease 0.1s forwards;
+  opacity: 0;
+}
+
+@keyframes clock-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fade-down {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 500px) {
+  .clock-container {
+    width: min(80vw, 80vh);
+    height: min(80vw, 80vh);
+  }
+  
+  .numeral {
+    font-size: 14px;
+  }
+  
+  .close-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .clock-container {
+    max-width: 550px;
+    max-height: 550px;
+  }
+  
+  .numeral {
+    font-size: 20px;
+  }
+}
+
+/* Landscape phone */
+@media (max-height: 500px) and (orientation: landscape) {
+  .clock-container {
+    width: min(60vh, 60vw);
+    height: min(60vh, 60vw);
+  }
+  
+  .date-display {
+    top: 12px;
+    font-size: 1rem;
+  }
+  
+  .digital-time {
+    bottom: 12px;
+  }
+  
+  .close-btn {
+    top: 8px;
+    right: 8px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  :host([open]) .clock-container,
+  :host([open]) .date-display {
+    animation: none;
+    opacity: 1;
+  }
+}

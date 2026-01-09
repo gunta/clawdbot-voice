@@ -1,0 +1,104 @@
+/**
+ * Phase Toggle - Elegant minimal version
+ * Clean toggle with line patterns
+ */
+
+:host {
+  display: inline-block;
+  --toggle-width: 60px;
+  --toggle-height: 30px;
+  --thumb-size: 22px;
+}
+
+.phase-toggle {
+  position: relative;
+  width: var(--toggle-width);
+  height: var(--toggle-height);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+}
+
+.phase-track {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: var(--toggle-height);
+  transition: border-color 0.3s ease;
+}
+
+.phase-matter {
+  display: none;
+}
+
+.phase-thumb {
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  transform: translateY(-50%);
+  transition: left 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.thumb-core {
+  position: absolute;
+  inset: 0;
+  background: var(--color-white, #FFFFFF);
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+}
+
+.thumb-particles {
+  display: none;
+}
+
+.phase-labels {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  font-family: var(--font-body, serif);
+  font-size: 0.5rem;
+  font-style: italic;
+  pointer-events: none;
+}
+
+.label-off, .label-on {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* ON State */
+.phase-toggle[aria-checked="true"] .phase-track {
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.phase-toggle[aria-checked="true"] .phase-thumb {
+  left: calc(100% - var(--thumb-size) - 4px);
+}
+
+.phase-toggle[aria-checked="true"] .label-on {
+  opacity: 0.6;
+  color: var(--color-red, #C84536);
+}
+
+/* Hover */
+.phase-toggle:hover .phase-track {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.phase-toggle:hover .thumb-core {
+  transform: scale(1.05);
+}
+
+/* Focus */
+.phase-toggle:focus-visible {
+  outline: 1px solid var(--color-white, #FFFFFF);
+  outline-offset: 4px;
+  border-radius: var(--toggle-height);
+}

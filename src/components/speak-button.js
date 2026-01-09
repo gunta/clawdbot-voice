@@ -28,9 +28,16 @@ export class SpeakButton extends HTMLElement {
   }
 
   set listening(value) {
+    const wasListening = this.listening;
     this.toggleAttribute('listening', Boolean(value));
+    
     if (this.#textSpan) {
       this.#textSpan.textContent = value ? 'listening...' : this.#defaultText;
+    }
+    
+    // Haptic feedback on state change
+    if (value && !wasListening) {
+      haptic('success'); // Started listening
     }
   }
 
@@ -47,6 +54,9 @@ export class SpeakButton extends HTMLElement {
 
   #handleClick() {
     if (this.disabled) return;
+    
+    // Haptic feedback on activation
+    haptic('medium');
     
     this.dispatchEvent(new CustomEvent('speak-toggle', {
       bubbles: true,

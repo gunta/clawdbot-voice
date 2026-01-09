@@ -1,0 +1,73 @@
+/**
+ * Fluid Glass - Elegant minimal version
+ * Clean bordered card with tilt
+ */
+
+:host {
+  display: block;
+}
+
+.glass-container {
+  position: relative;
+  min-width: 260px;
+  min-height: 160px;
+  cursor: grab;
+  perspective: 800px;
+}
+
+.glass-container:active {
+  cursor: grabbing;
+}
+
+.glass-surface {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transform-style: preserve-3d;
+}
+
+.glass-reflection,
+.glass-distortion,
+.glass-edge {
+  display: none;
+}
+
+.glass-content {
+  padding: 28px;
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Hover tilt */
+.glass-container:hover .glass-surface {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+:host([tilt]) .glass-surface {
+  transform: 
+    rotateX(var(--tilt-x, 0deg)) 
+    rotateY(var(--tilt-y, 0deg));
+}
+
+/* Idle subtle animation */
+.glass-surface {
+  animation: gentle-tilt 8s ease-in-out infinite;
+}
+
+@keyframes gentle-tilt {
+  0%, 100% { transform: rotateX(0) rotateY(0); }
+  25% { transform: rotateX(1deg) rotateY(1deg); }
+  75% { transform: rotateX(-1deg) rotateY(-1deg); }
+}
+
+:host(:hover) .glass-surface,
+:host([dragging]) .glass-surface {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-surface { animation: none; }
+}

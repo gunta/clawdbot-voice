@@ -1,0 +1,82 @@
+/**
+ * Echo Tooltip - Elegant minimal version
+ * Clean tooltip with fade
+ */
+
+:host {
+  display: inline-block;
+}
+
+.echo-trigger {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+}
+
+.echo-bubble {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  padding: 8px 14px;
+  background: var(--color-red-deep, #B33D2F);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  z-index: 100;
+}
+
+.echo-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--color-red-deep, #B33D2F);
+}
+
+.echo-text {
+  font-family: var(--font-body, 'Cormorant Garamond', serif);
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--color-white, #FFFFFF);
+}
+
+.echo-ghost {
+  display: none;
+}
+
+/* Hover */
+.echo-trigger:hover .echo-bubble {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Position bottom */
+:host([position="bottom"]) .echo-bubble {
+  top: calc(100% + 10px);
+  bottom: auto;
+  transform: translateX(-50%) translateY(-6px);
+}
+
+:host([position="bottom"]) .echo-trigger:hover .echo-bubble {
+  transform: translateX(-50%) translateY(0);
+}
+
+:host([position="bottom"]) .echo-bubble::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--color-red-deep, #B33D2F);
+}
+
+.echo-trigger:focus-visible .echo-bubble {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}

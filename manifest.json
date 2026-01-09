@@ -1,15 +1,15 @@
 {
   "name": "CLAWD OS1",
   "short_name": "CLAWD",
-  "description": "A voice experience inspired by Her",
+  "description": "Your voice companion - works on any device, even offline",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "fullscreen"],
-  "orientation": "portrait",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
   "theme_color": "#C84536",
   "background_color": "#C84536",
-  "categories": ["entertainment", "lifestyle"],
+  "categories": ["entertainment", "lifestyle", "utilities"],
   "icons": [
     {
       "src": "icons/icon-72.png",
@@ -63,10 +63,24 @@
   "screenshots": [],
   "shortcuts": [
     {
+      "name": "Start Listening",
+      "short_name": "Listen",
+      "description": "Open and start listening immediately",
+      "url": "/?listen=true",
+      "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96" }]
+    },
+    {
       "name": "Talk to Clawd",
       "short_name": "Clawd",
-      "description": "Start a conversation with Clawd",
+      "description": "Speak with the lobster directly",
       "url": "/?voice=clawd",
+      "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Talk to Her",
+      "short_name": "Her",
+      "description": "She speaks to Clawd for you",
+      "url": "/?voice=her",
       "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96" }]
     }
   ],

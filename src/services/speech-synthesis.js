@@ -1,7 +1,9 @@
 /**
  * Speech Synthesis Service
- * Text-to-speech with voice selection
+ * Text-to-speech with voice selection and audio analysis
  */
+
+import { audioAnalyzer } from './audio-analyzer.js';
 
 class SpeechSynthesisService extends EventTarget {
   #synthesis = window.speechSynthesis;
@@ -61,17 +63,21 @@ class SpeechSynthesisService extends EventTarget {
 
       utterance.onstart = () => {
         this.#isSpeaking = true;
+        // Start fake audio analysis for visualization
+        audioAnalyzer.startSpeechAnalysis();
         this.dispatchEvent(new CustomEvent('start', { detail: { text } }));
       };
 
       utterance.onend = () => {
         this.#isSpeaking = false;
+        audioAnalyzer.stopAnalysis();
         this.dispatchEvent(new CustomEvent('end'));
         resolve();
       };
 
       utterance.onerror = (event) => {
         this.#isSpeaking = false;
+        audioAnalyzer.stopAnalysis();
         this.dispatchEvent(new CustomEvent('error', { detail: { error: event } }));
         reject(event);
       };
@@ -86,6 +92,7 @@ class SpeechSynthesisService extends EventTarget {
   cancel() {
     this.#synthesis?.cancel();
     this.#isSpeaking = false;
+    audioAnalyzer.stopAnalysis();
   }
 
   #loadVoices() {

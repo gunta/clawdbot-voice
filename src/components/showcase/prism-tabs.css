@@ -1,0 +1,75 @@
+/**
+ * Prism Tabs - Elegant minimal version
+ * Clean tabs with underline indicator
+ */
+
+:host {
+  display: block;
+}
+
+.prism-container {
+  position: relative;
+}
+
+.prism-track {
+  display: flex;
+  position: relative;
+  gap: 4px;
+}
+
+.prism-light,
+.prism-refraction {
+  display: none;
+}
+
+.prism-indicator {
+  position: absolute;
+  bottom: 0;
+  left: var(--indicator-left, 0);
+  width: var(--indicator-width, 80px);
+  height: 1px;
+  background: var(--color-white, #FFFFFF);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+::slotted(.prism-tab) {
+  position: relative;
+  flex: 1;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-body, 'Cormorant Garamond', serif);
+  font-size: 0.9rem;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.4);
+  transition: color 0.3s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+::slotted(.prism-tab:hover) {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+::slotted(.prism-tab.active) {
+  color: var(--color-white, #FFFFFF);
+}
+
+::slotted(.prism-tab) .tab-icon {
+  font-size: 0.75rem;
+}
+
+::slotted(.prism-tab) .tab-text {
+  font-family: var(--font-body, serif);
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+}
+
+::slotted(.prism-tab:focus-visible) {
+  outline: 1px solid var(--color-white, #FFFFFF);
+  outline-offset: 2px;
+}

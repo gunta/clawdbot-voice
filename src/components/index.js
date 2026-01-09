@@ -10,3 +10,4 @@ export { TranscriptionDisplay } from './transcription-display.js';
 export { SpeakButton } from './speak-button.js';
 export { StatusDisplay } from './status-display.js';
 export { AppFooter } from './app-footer.js';
+export { ClockModal } from './clock-modal.js';

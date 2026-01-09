@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>CLAWD OS1</title>
   
+  <!-- DEV MODE: Disable caching (remove for production) -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  
   <!-- Native app feel -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -19,10 +24,8 @@
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;1,6..96,400&display=swap" rel="stylesheet">
+  <!-- Fonts: Self-hosted for full offline support -->
+  <link rel="stylesheet" href="src/fonts/fonts.css">
   
   <!-- Global Styles -->
   <link rel="stylesheet" href="src/styles/index.css">
@@ -172,7 +175,82 @@
     </app-footer>
   </div>
 
+  <!-- Clock Modal - Bold, simple analog clock -->
+  <clock-modal id="clockModal">
+    <template shadowrootmode="open">
+      <link rel="stylesheet" href="src/components/styles/clock-modal.css">
+      
+      <button class="close-btn" type="button" aria-label="Close clock">
+        <svg viewBox="0 0 24 24" fill="none">
+          <line x1="6" y1="6" x2="18" y2="18" />
+          <line x1="18" y1="6" x2="6" y2="18" />
+        </svg>
+      </button>
+      
+      <div class="date-display" id="dateDisplay"></div>
+      
+      <div class="clock-container">
+        <svg class="clock-svg" viewBox="0 0 400 400">
+          <!-- Clock face -->
+          <circle class="clock-face" cx="200" cy="200" r="175" />
+          
+          <!-- Hour markers -->
+          <line class="hour-marker" x1="200" y1="45" x2="200" y2="28" />
+          <line class="hour-marker" x1="277.5" y1="67.5" x2="289.5" y2="55.5" />
+          <line class="hour-marker" x1="355" y1="200" x2="372" y2="200" />
+          <line class="hour-marker" x1="277.5" y1="332.5" x2="289.5" y2="344.5" />
+          <line class="hour-marker" x1="200" y1="355" x2="200" y2="372" />
+          <line class="hour-marker" x1="122.5" y1="332.5" x2="110.5" y2="344.5" />
+          <line class="hour-marker" x1="45" y1="200" x2="28" y2="200" />
+          <line class="hour-marker" x1="122.5" y1="67.5" x2="110.5" y2="55.5" />
+          <line class="hour-marker" x1="243.3" y1="53.4" x2="251.7" y2="38.8" />
+          <line class="hour-marker" x1="156.7" y1="53.4" x2="148.3" y2="38.8" />
+          <line class="hour-marker" x1="346.6" y1="156.7" x2="361.2" y2="148.3" />
+          <line class="hour-marker" x1="346.6" y1="243.3" x2="361.2" y2="251.7" />
+          
+          <!-- Roman numerals -->
+          <text class="numeral" x="200" y="80">XII</text>
+          <text class="numeral" x="265" y="98">I</text>
+          <text class="numeral" x="310" y="143">II</text>
+          <text class="numeral" x="325" y="205">III</text>
+          <text class="numeral" x="310" y="265">IV</text>
+          <text class="numeral" x="265" y="310">V</text>
+          <text class="numeral" x="200" y="328">VI</text>
+          <text class="numeral" x="135" y="310">VII</text>
+          <text class="numeral" x="88" y="265">VIII</text>
+          <text class="numeral" x="75" y="205">IX</text>
+          <text class="numeral" x="88" y="143">X</text>
+          <text class="numeral" x="135" y="98">XI</text>
+          
+          <!-- Clock hands -->
+          <line class="hand hand-hour" id="hourHand" x1="200" y1="200" x2="200" y2="100" />
+          <line class="hand hand-minute" id="minuteHand" x1="200" y1="200" x2="200" y2="60" />
+          <line class="hand hand-second" id="secondHand" x1="200" y1="230" x2="200" y2="55" />
+          
+          <!-- Center dot -->
+          <circle class="center-dot" cx="200" cy="200" r="6" />
+        </svg>
+      </div>
+      
+      <div class="digital-time" id="digitalTime"></div>
+    </template>
+  </clock-modal>
+
   <!-- App Entry Point -->
   <script type="module" src="src/app.js"></script>
+  
+  <!-- DEV MODE: Clear service worker cache (remove for production) -->
+  <script>
+    const DEV_MODE = true;
+    if (DEV_MODE && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(reg => reg.unregister());
+      });
+      caches.keys().then(keys => {
+        keys.forEach(key => caches.delete(key));
+      });
+      console.log('[DEV] Service worker & caches cleared');
+    }
+  </script>
 </body>
 </html>

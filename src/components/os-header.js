@@ -3,6 +3,8 @@
  * Behavior only - template is in HTML via Declarative Shadow DOM
  */
 
+import { chimes } from '../services/index.js';
+
 export class OsHeader extends HTMLElement {
   #clockElement = null;
   #intervalId = null;
@@ -15,6 +17,16 @@ export class OsHeader extends HTMLElement {
     this.#clockElement = this.shadowRoot?.querySelector('.clock');
     this.#updateClock();
     this.#intervalId = setInterval(() => this.#updateClock(), 1000);
+    
+    // Open clock modal and play chime when clock is clicked
+    this.#clockElement?.addEventListener('click', () => {
+      chimes.clockTap();
+      // Open the clock modal if it exists
+      const clockModal = document.querySelector('clock-modal');
+      if (clockModal) {
+        clockModal.open();
+      }
+    });
   }
 
   disconnectedCallback() {
@@ -33,12 +45,13 @@ export class OsHeader extends HTMLElement {
 
   #updateClock() {
     if (!this.#clockElement) return;
+    
     const now = new Date();
-    this.#clockElement.textContent = now.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    
+    // Render with animated colon separator
+    this.#clockElement.innerHTML = `<span class="hours">${hours}</span><span class="colon">:</span><span class="minutes">${minutes}</span>`;
   }
 }
 
