@@ -22,3 +22,4 @@
 # Service worker should not be cached
 /sw.js
   Cache-Control: no-cache, no-store, must-revalidate
+

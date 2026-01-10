@@ -18,3 +18,6 @@ export { TextEditor } from './text-editor.js';
 export { HandwriteText } from './handwrite-text.js';
 export { CommandsApp } from './commands-app.js';
 export { CoderApp } from './coder-app.js';
+export { DropZone } from './drop-zone.js';
+export { SettingsApp } from './settings-app.js';
+export { ImageViewerApp } from './image-viewer-app.js';

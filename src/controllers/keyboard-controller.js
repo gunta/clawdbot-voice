@@ -31,18 +31,19 @@ class KeyboardController {
     if (commandsApp?.hasAttribute('open')) return;
 
     switch (e.key) {
-      case ' ':
-        e.preventDefault();
-        this.#handlers.onSpace?.();
-        break;
+      // TODO: Disable for now
+      // case ' ':
+      //   e.preventDefault();
+      //   this.#handlers.onSpace?.();
+      //   break;
 
-      case '1':
-        this.#handlers.onOne?.();
-        break;
+      // case '1':
+      //   this.#handlers.onOne?.();
+      //   break;
 
-      case '2':
-        this.#handlers.onTwo?.();
-        break;
+      // case '2':
+      //   this.#handlers.onTwo?.();
+      //   break;
 
       case 'Escape':
         this.#handlers.onEscape?.();

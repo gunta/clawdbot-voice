@@ -218,6 +218,41 @@
         <div class="zoom-indicator">100%</div>
       </div>
       
+      <!-- Context Menu -->
+      <div class="context-menu" role="menu" aria-label="File actions">
+        <button class="context-menu-item" data-action="open" role="menuitem">
+          <svg viewBox="0 0 24 24">
+            <path d="M21 2.992V7h-4.992M3 21.008V17h4.992M21 7C20 3.5 17 2 12 2S4 3.5 3 7m0 10c1 3.5 4 5 9 5s8-1.5 9-5"/>
+          </svg>
+          <span>Open</span>
+        </button>
+        <button class="context-menu-item" data-action="copy" role="menuitem">
+          <svg viewBox="0 0 24 24">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+          </svg>
+          <span>Copy</span>
+        </button>
+        <button class="context-menu-item" data-action="download" role="menuitem">
+          <svg viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>Download</span>
+        </button>
+        <div class="context-menu-separator"></div>
+        <button class="context-menu-item context-menu-item--danger" data-action="delete" role="menuitem">
+          <svg viewBox="0 0 24 24">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+            <line x1="10" y1="11" x2="10" y2="17"/>
+            <line x1="14" y1="11" x2="14" y2="17"/>
+          </svg>
+          <span>Delete</span>
+        </button>
+      </div>
+      
       <div class="time-scrubber">
         <span class="time-label">past</span>
         <div class="time-slider">
@@ -342,6 +377,18 @@
           </div>
           <span class="app-name">settings</span>
         </div>
+        
+        <!-- Images App -->
+        <div class="app-card" data-app="image-viewer" tabindex="0" role="button" aria-label="Open Images">
+          <div class="app-icon">
+            <svg viewBox="0 0 24 24">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+          </div>
+          <span class="app-name">images</span>
+        </div>
       </div>
     </template>
   </launchpad-view>
@@ -398,6 +445,79 @@
       </div>
     </template>
   </coder-app>
+
+  <!-- Settings App - OS Configuration Panel -->
+  <settings-app id="settingsApp"></settings-app>
+
+  <!-- Image Viewer App - Elegant Image Gallery -->
+  <image-viewer-app id="imageViewerApp">
+    <template shadowrootmode="open">
+      <link rel="stylesheet" href="src/components/styles/image-viewer-app.css">
+      
+      <div class="header">
+        <div class="header-left">
+          <span class="counter">1 / 10</span>
+        </div>
+        <div class="header-center">
+          <span class="title">Image</span>
+          <span class="image-info">1920 × 1080 • PNG</span>
+        </div>
+        <div class="header-right">
+          <button class="close-btn" type="button" aria-label="Close viewer">
+            <svg viewBox="0 0 24 24" fill="none">
+              <line x1="6" y1="6" x2="18" y2="18" />
+              <line x1="18" y1="6" x2="6" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      
+      <div class="image-container">
+        <img class="image-display" alt="Image preview" />
+        
+        <div class="nav-overlay left">
+          <button class="nav-btn prev-btn" type="button" aria-label="Previous image">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M15 18L9 12L15 6" />
+            </svg>
+          </button>
+        </div>
+        
+        <div class="nav-overlay right">
+          <button class="nav-btn next-btn" type="button" aria-label="Next image">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M9 6L15 12L9 18" />
+            </svg>
+          </button>
+        </div>
+        
+        <div class="loading-overlay">
+          <div class="loading-spinner"></div>
+        </div>
+      </div>
+      
+      <div class="footer">
+        <div class="zoom-controls">
+          <button class="zoom-btn zoom-out-btn" type="button" aria-label="Zoom out">
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="7" y1="11" x2="15" y2="11" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
+          <button class="zoom-btn zoom-reset-btn" type="button" aria-label="Reset zoom">100%</button>
+          <button class="zoom-btn zoom-in-btn" type="button" aria-label="Zoom in">
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="11" y1="7" x2="11" y2="15" />
+              <line x1="7" y1="11" x2="15" y2="11" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </template>
+  </image-viewer-app>
 
   <!-- Clock Modal - Bold, simple analog clock -->
   <clock-modal id="clockModal">
@@ -459,6 +579,9 @@
       <div class="digital-time" id="digitalTime"></div>
     </template>
   </clock-modal>
+
+  <!-- Drop Zone - Global drag & drop file upload -->
+  <drop-zone id="dropZone"></drop-zone>
 
   <!-- App Entry Point -->
   <script type="module" src="src/app.js"></script>

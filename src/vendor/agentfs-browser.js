@@ -219,4 +219,3 @@ var D=class{db;kv;fs;tools;constructor(t,a,e,n){this.db=t,this.kv=a,this.fs=e,th
       GROUP BY name
       ORDER BY total_calls DESC
     `).all()).map(e=>({name:e.name,total_calls:e.total_calls,successful:e.successful,failed:e.failed,avg_duration_ms:e.avg_duration_ms||0}))}rowToToolCall(t){return{id:t.id,name:t.name,parameters:t.parameters!==null?JSON.parse(t.parameters):void 0,result:t.result!==null?JSON.parse(t.result):void 0,error:t.error!==null?t.error:void 0,status:t.status,started_at:t.started_at,completed_at:t.completed_at!==null?t.completed_at:void 0,duration_ms:t.duration_ms!==null?t.duration_ms:void 0}}};import{Buffer as Y}from"./buffer.js";var X=class r extends D{static async openWith(t){let[a,e,n]=await Promise.all([N.fromDatabase(t),I.fromDatabase(t,Y),g.fromDatabase(t)]);return new r(t,a,e,n)}};export{X as AgentFS,I as Filesystem,N as KvStore,g as ToolCalls};
-//# sourceMappingURL=agentfs-sdk.bundle.mjs.map

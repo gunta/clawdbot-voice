@@ -13,7 +13,9 @@ export class FilesApp extends HTMLElement {
   #pathElement = null;
   #timeScrubber = null;
   #zoomIndicator = null;
+  #contextMenu = null;
   #boundHandleKeyDown = null;
+  #boundHandleContextMenuClose = null;
   
   // State
   #currentPath = '/';
@@ -24,6 +26,7 @@ export class FilesApp extends HTMLElement {
   #isLoading = false;
   #lastPinchDistance = 0;
   #isPinching = false;
+  #contextMenuTarget = null; // Currently right-clicked file/folder
 
   connectedCallback() {
     this.#canvas = this.shadowRoot?.querySelector('.canvas');
@@ -32,6 +35,7 @@ export class FilesApp extends HTMLElement {
     this.#pathElement = this.shadowRoot?.querySelector('.path');
     this.#timeScrubber = this.shadowRoot?.querySelector('.time-slider');
     this.#zoomIndicator = this.shadowRoot?.querySelector('.zoom-indicator');
+    this.#contextMenu = this.shadowRoot?.querySelector('.context-menu');
     
     // Event handlers
     this.#closeBtn?.addEventListener('click', () => this.close());
@@ -39,6 +43,14 @@ export class FilesApp extends HTMLElement {
     
     // Keyboard
     this.#boundHandleKeyDown = this.#handleKeyDown.bind(this);
+    
+    // Context menu close handler (click outside)
+    this.#boundHandleContextMenuClose = this.#handleContextMenuClose.bind(this);
+    
+    // Context menu item handlers
+    this.#contextMenu?.querySelectorAll('.context-menu-item').forEach(item => {
+      item.addEventListener('click', (e) => this.#handleContextMenuAction(e));
+    });
     
     // Zoom (wheel)
     this.#canvas?.parentElement?.addEventListener('wheel', (e) => this.#handleWheel(e), { passive: false });
@@ -57,6 +69,7 @@ export class FilesApp extends HTMLElement {
 
   disconnectedCallback() {
     document.removeEventListener('keydown', this.#boundHandleKeyDown);
+    this.shadowRoot?.removeEventListener('click', this.#boundHandleContextMenuClose);
   }
 
   /**
@@ -234,8 +247,10 @@ export class FilesApp extends HTMLElement {
       <div class="node" 
            data-path="${file.path}" 
            data-type="${file.type}"
+           data-name="${file.name}"
            tabindex="0"
            role="button"
+           draggable="true"
            aria-label="${file.type === 'folder' ? 'Open folder' : 'Open file'} ${file.name}"
            style="animation-delay: ${index * 0.05}s">
         <div class="node-icon">
@@ -245,9 +260,11 @@ export class FilesApp extends HTMLElement {
       </div>
     `).join('');
     
-    // Add click handlers to nodes
+    // Add click, context menu, and drag handlers to nodes
     this.#canvas.querySelectorAll('.node').forEach(node => {
       node.addEventListener('click', () => this.#handleNodeClick(node));
+      node.addEventListener('contextmenu', (e) => this.#handleNodeContextMenu(e, node));
+      node.addEventListener('dragstart', (e) => this.#handleDragStart(e, node));
       node.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -345,11 +362,27 @@ export class FilesApp extends HTMLElement {
   ]);
 
   /**
+   * Image file extensions that should open in Image Viewer app
+   */
+  static #imageExtensions = new Set([
+    'png', 'jpg', 'jpeg', 'gif', 'webp', 
+    'bmp', 'ico', 'tiff', 'tif', 'avif', 'heic', 'heif'
+  ]);
+
+  /**
    * Check if a file should open in the code editor
    */
   #isCodeFile(path) {
     const ext = path.split('.').pop()?.toLowerCase();
     return ext && FilesApp.#codeExtensions.has(ext);
+  }
+
+  /**
+   * Check if a file should open in the image viewer
+   */
+  #isImageFile(path) {
+    const ext = path.split('.').pop()?.toLowerCase();
+    return ext && FilesApp.#imageExtensions.has(ext);
   }
 
   /**
@@ -359,9 +392,17 @@ export class FilesApp extends HTMLElement {
     try {
       appContext.recordAction('files', 'open-file', { path });
       
-      // Route to appropriate editor based on extension
+      // Route to appropriate editor/viewer based on extension
       // Note: Files app stays open - editors open as overlays
-      if (this.#isCodeFile(path)) {
+      if (this.#isImageFile(path)) {
+        // Open in Image Viewer app
+        const imageViewer = document.getElementById('imageViewerApp');
+        if (imageViewer) {
+          await imageViewer.open(path);
+        } else {
+          console.warn('[FilesApp] Image viewer not found');
+        }
+      } else if (this.#isCodeFile(path)) {
         // Open in Coder app (Monaco)
         const coderApp = document.getElementById('coderApp');
         if (coderApp) {
@@ -522,11 +563,335 @@ export class FilesApp extends HTMLElement {
    */
   #handleKeyDown(e) {
     if (e.key === 'Escape') {
-      this.close();
+      // Close context menu first, then close app
+      if (this.#contextMenu?.classList.contains('visible')) {
+        this.#hideContextMenu();
+      } else {
+        this.close();
+      }
     } else if (e.key === 'Backspace' && !e.target.matches('input, textarea')) {
       e.preventDefault();
       this.#navigateUp();
     }
+  }
+
+  /**
+   * Show context menu for a node
+   */
+  #handleNodeContextMenu(e, node) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    this.#contextMenuTarget = {
+      path: node.dataset.path,
+      type: node.dataset.type,
+      name: node.dataset.name
+    };
+    
+    this.#showContextMenu(e.clientX, e.clientY);
+  }
+
+  /**
+   * Show context menu at position
+   */
+  #showContextMenu(x, y) {
+    if (!this.#contextMenu) return;
+    
+    // Play subtle feedback
+    systemSounds.tap();
+    
+    // Position the menu
+    const menuRect = this.#contextMenu.getBoundingClientRect();
+    const containerRect = this.getBoundingClientRect();
+    
+    // Adjust position to stay within bounds
+    let menuX = x - containerRect.left;
+    let menuY = y - containerRect.top;
+    
+    // Show menu first to get dimensions
+    this.#contextMenu.classList.add('visible');
+    
+    // Adjust if menu goes off screen
+    const menuWidth = this.#contextMenu.offsetWidth;
+    const menuHeight = this.#contextMenu.offsetHeight;
+    
+    if (menuX + menuWidth > containerRect.width) {
+      menuX = containerRect.width - menuWidth - 16;
+    }
+    if (menuY + menuHeight > containerRect.height) {
+      menuY = containerRect.height - menuHeight - 16;
+    }
+    
+    this.#contextMenu.style.left = `${menuX}px`;
+    this.#contextMenu.style.top = `${menuY}px`;
+    
+    // Add click outside listener
+    setTimeout(() => {
+      this.shadowRoot?.addEventListener('click', this.#boundHandleContextMenuClose);
+    }, 10);
+  }
+
+  /**
+   * Hide context menu
+   */
+  #hideContextMenu() {
+    if (!this.#contextMenu) return;
+    
+    this.#contextMenu.classList.remove('visible');
+    this.#contextMenuTarget = null;
+    this.shadowRoot?.removeEventListener('click', this.#boundHandleContextMenuClose);
+  }
+
+  /**
+   * Handle click outside context menu
+   */
+  #handleContextMenuClose(e) {
+    if (!this.#contextMenu?.contains(e.target)) {
+      this.#hideContextMenu();
+    }
+  }
+
+  /**
+   * Handle context menu action
+   */
+  async #handleContextMenuAction(e) {
+    const action = e.currentTarget.dataset.action;
+    const target = this.#contextMenuTarget;
+    
+    this.#hideContextMenu();
+    
+    if (!target) return;
+    
+    switch (action) {
+      case 'open':
+        await this.#openTarget(target);
+        break;
+      case 'copy':
+        await this.#copyToClipboard(target);
+        break;
+      case 'download':
+        await this.#downloadTarget(target);
+        break;
+      case 'delete':
+        await this.#deleteTarget(target);
+        break;
+    }
+  }
+
+  /**
+   * Open file or folder
+   */
+  async #openTarget(target) {
+    if (target.type === 'folder') {
+      await this.#zoomIntoFolderByPath(target.path);
+    } else {
+      await this.#previewFile(target.path);
+    }
+  }
+
+  /**
+   * Zoom into folder by path (without node reference)
+   */
+  async #zoomIntoFolderByPath(path) {
+    if (!this.#canvas) return;
+    
+    systemSounds.zoomIn();
+    
+    // Simple zoom animation without centering on specific node
+    this.#canvas.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease';
+    this.#canvas.style.transform = 'scale(2.5)';
+    this.#canvas.style.opacity = '0';
+    
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
+    this.#currentPath = path;
+    this.#zoom = 1;
+    
+    this.#canvas.style.transition = 'none';
+    this.#canvas.style.transform = 'scale(0.5)';
+    this.#canvas.style.opacity = '0';
+    
+    await this.#loadFiles();
+    
+    requestAnimationFrame(() => {
+      this.#canvas.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease';
+      this.#canvas.style.transform = 'scale(1)';
+      this.#canvas.style.opacity = '1';
+    });
+  }
+
+  /**
+   * Copy file/folder path or contents to clipboard
+   */
+  async #copyToClipboard(target) {
+    try {
+      if (target.type === 'file') {
+        // For files, copy the content
+        const content = await agentfs.readFile(target.path);
+        await navigator.clipboard.writeText(content);
+        appContext.recordAction('files', 'copy-content', { path: target.path });
+      } else {
+        // For folders, copy the path
+        await navigator.clipboard.writeText(target.path);
+        appContext.recordAction('files', 'copy-path', { path: target.path });
+      }
+      
+      systemSounds.success();
+    } catch (err) {
+      console.error('[FilesApp] Failed to copy:', err);
+      systemSounds.error();
+    }
+  }
+
+  /**
+   * Download file or folder
+   */
+  async #downloadTarget(target) {
+    try {
+      appContext.recordAction('files', 'download', { path: target.path, type: target.type });
+      
+      if (target.type === 'file') {
+        await this.#downloadFile(target.path, target.name);
+      } else {
+        // For folders, download as a text file with file listing
+        await this.#downloadFolderAsListing(target.path, target.name);
+      }
+      
+      systemSounds.success();
+    } catch (err) {
+      console.error('[FilesApp] Failed to download:', err);
+      systemSounds.error();
+    }
+  }
+
+  /**
+   * Download a single file
+   */
+  async #downloadFile(path, name) {
+    const content = await agentfs.readFile(path);
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Download folder as listing (or zip in future)
+   */
+  async #downloadFolderAsListing(path, name) {
+    const entries = await agentfs.readdir(path);
+    const listing = `Folder: ${path}\n\nContents:\n${entries.map(e => `  - ${e}`).join('\n')}`;
+    
+    const blob = new Blob([listing], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name}-listing.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Delete file or folder
+   */
+  async #deleteTarget(target) {
+    // Confirm deletion
+    const confirmed = confirm(`Delete "${target.name}"?\n\nThis action cannot be undone.`);
+    if (!confirmed) return;
+    
+    try {
+      if (target.type === 'file') {
+        await agentfs.deleteFile(target.path);
+      } else {
+        // For folders, we need to recursively delete contents first
+        await this.#deleteFolder(target.path);
+      }
+      
+      appContext.recordAction('files', 'delete', { path: target.path, type: target.type });
+      systemSounds.confirm();
+      
+      // Refresh the file list
+      await this.#loadFiles();
+    } catch (err) {
+      console.error('[FilesApp] Failed to delete:', err);
+      systemSounds.error();
+      alert(`Failed to delete: ${err.message}`);
+    }
+  }
+
+  /**
+   * Recursively delete a folder and its contents
+   */
+  async #deleteFolder(path) {
+    const entries = await agentfs.readdir(path);
+    
+    for (const name of entries) {
+      const fullPath = path === '/' ? `/${name}` : `${path}/${name}`;
+      const isDir = await this.#isDirectory(fullPath);
+      
+      if (isDir) {
+        await this.#deleteFolder(fullPath);
+      } else {
+        await agentfs.deleteFile(fullPath);
+      }
+    }
+    
+    // After contents are deleted, remove the empty directory
+    // Using the underlying agent.fs.rmdir
+    const agent = await agentfs.getAgent();
+    await agent.fs.rmdir(path);
+  }
+
+  /**
+   * Handle drag start - enable drag-out download
+   */
+  async #handleDragStart(e, node) {
+    const path = node.dataset.path;
+    const name = node.dataset.name;
+    const type = node.dataset.type;
+    
+    // Set drag data
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('text/plain', path);
+    
+    // Add visual feedback
+    node.classList.add('dragging');
+    
+    // For files, try to set download data
+    if (type === 'file') {
+      try {
+        const content = await agentfs.readFile(path);
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        
+        // Set the DownloadURL for native drag-out download
+        // Format: "mime:filename:url"
+        e.dataTransfer.setData('DownloadURL', `text/plain:${name}:${url}`);
+        
+        // Clean up the URL after drag ends
+        node.addEventListener('dragend', () => {
+          node.classList.remove('dragging');
+          URL.revokeObjectURL(url);
+        }, { once: true });
+      } catch (err) {
+        console.error('[FilesApp] Failed to prepare drag download:', err);
+      }
+    } else {
+      node.addEventListener('dragend', () => {
+        node.classList.remove('dragging');
+      }, { once: true });
+    }
+    
+    appContext.recordAction('files', 'drag-start', { path, type });
   }
 
   /**
@@ -669,6 +1034,15 @@ export class FilesApp extends HTMLElement {
   #fileIcon(name) {
     const ext = name.split('.').pop()?.toLowerCase();
     
+    // Image files
+    if (FilesApp.#imageExtensions.has(ext)) {
+      return `<svg viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <polyline points="21 15 16 10 5 21" />
+      </svg>`;
+    }
+    
     // JSON/Config files
     if (ext === 'json' || ext === 'yaml' || ext === 'yml' || ext === 'toml') {
       return `<svg viewBox="0 0 24 24">
@@ -700,6 +1074,21 @@ export class FilesApp extends HTMLElement {
    */
   get currentPath() {
     return this.#currentPath;
+  }
+
+  /**
+   * Get current working directory (alias for currentPath)
+   * Used by drop-zone for determining upload destination
+   */
+  get currentWorkingDirectory() {
+    return this.#currentPath;
+  }
+
+  /**
+   * Refresh the current directory (reload files)
+   */
+  async refresh() {
+    await this.#loadFiles();
   }
 
   /**

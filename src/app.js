@@ -100,27 +100,44 @@ class ClawdOS1App {
   }
 
   async #setupServiceWorker() {
-    // Service worker disabled for development
-    // Unregister any existing service workers and clear caches
-    if ('serviceWorker' in navigator) {
+    if (!('serviceWorker' in navigator)) return;
+
+    const isLocalhost =
+      location.hostname === 'localhost' ||
+      location.hostname === '127.0.0.1' ||
+      location.hostname === '[::1]';
+    const isDevLike = isLocalhost || location.protocol === 'file:';
+
+    // Dev: disable SW to avoid caching headaches during iteration.
+    if (isDevLike) {
       try {
         const registrations = await navigator.serviceWorker.getRegistrations();
         for (const registration of registrations) {
           await registration.unregister();
           console.log('[SW] Unregistered:', registration.scope);
         }
-        // Clear all caches
+
         const cacheNames = await caches.keys();
         for (const name of cacheNames) {
           await caches.delete(name);
           console.log('[SW] Cache deleted:', name);
         }
+
         if (registrations.length || cacheNames.length) {
-          console.log('[SW] Service worker and caches cleared');
+          console.log('[SW] Service worker and caches cleared (dev)');
         }
       } catch (err) {
-        console.warn('[SW] Cleanup failed:', err);
+        console.warn('[SW] Cleanup failed (dev):', err);
       }
+      return;
+    }
+
+    // Prod: register SW for offline + faster reloads.
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      console.log('[SW] Registered:', registration.scope);
+    } catch (err) {
+      console.warn('[SW] Registration failed:', err);
     }
   }
 

@@ -14,10 +14,14 @@ export class ClockModal extends HTMLElement {
   #animationFrame = null;
   #isOpen = false;
   #boundHandleKeydown = null;
+  #idleTimer = null;
+  #boundHandleMouseMove = null;
+  static #IDLE_TIMEOUT = 3000; // 3 seconds
 
   constructor() {
     super();
     this.#boundHandleKeydown = this.#handleKeydown.bind(this);
+    this.#boundHandleMouseMove = this.#handleMouseMove.bind(this);
   }
 
   connectedCallback() {
@@ -33,6 +37,7 @@ export class ClockModal extends HTMLElement {
 
   disconnectedCallback() {
     this.#stopAnimation();
+    this.#stopIdleTracking();
     document.removeEventListener('keydown', this.#boundHandleKeydown);
   }
 
@@ -207,6 +212,50 @@ export class ClockModal extends HTMLElement {
     }
   }
 
+  #handleMouseMove() {
+    // Show close button immediately on mouse move
+    this.removeAttribute('idle');
+    
+    // Reset the idle timer
+    this.#resetIdleTimer();
+  }
+
+  #resetIdleTimer() {
+    // Clear existing timer
+    if (this.#idleTimer) {
+      clearTimeout(this.#idleTimer);
+    }
+    
+    // Set new timer to hide close button after inactivity
+    this.#idleTimer = setTimeout(() => {
+      if (this.#isOpen) {
+        this.setAttribute('idle', '');
+      }
+    }, ClockModal.#IDLE_TIMEOUT);
+  }
+
+  #startIdleTracking() {
+    // Listen for mouse movement on the modal
+    this.addEventListener('mousemove', this.#boundHandleMouseMove);
+    
+    // Start the initial idle timer
+    this.#resetIdleTimer();
+  }
+
+  #stopIdleTracking() {
+    // Remove listener
+    this.removeEventListener('mousemove', this.#boundHandleMouseMove);
+    
+    // Clear timer
+    if (this.#idleTimer) {
+      clearTimeout(this.#idleTimer);
+      this.#idleTimer = null;
+    }
+    
+    // Ensure close button is visible when modal closes
+    this.removeAttribute('idle');
+  }
+
   // Public API
   open() {
     if (this.#isOpen) return;
@@ -214,6 +263,7 @@ export class ClockModal extends HTMLElement {
     this.#isOpen = true;
     this.setAttribute('open', '');
     this.#startAnimation();
+    this.#startIdleTracking();
     
     // Listen for Escape key
     document.addEventListener('keydown', this.#boundHandleKeydown);
@@ -233,6 +283,7 @@ export class ClockModal extends HTMLElement {
     this.#isOpen = false;
     this.removeAttribute('open');
     this.#stopAnimation();
+    this.#stopIdleTracking();
     
     document.removeEventListener('keydown', this.#boundHandleKeydown);
     

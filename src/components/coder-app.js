@@ -7,7 +7,7 @@
 import { agentfs, systemSounds } from '../services/index.js';
 
 // Monaco CDN URL
-const MONACO_CDN = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2';
+const MONACO_CDN = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1';
 
 export class CoderApp extends HTMLElement {
   #editor = null;
@@ -98,11 +98,6 @@ export class CoderApp extends HTMLElement {
     
     // Keyboard
     this.#boundHandleKeyDown = this.#handleKeyDown.bind(this);
-    
-    // Resize observer for Monaco
-    this.#resizeObserver = new ResizeObserver(() => {
-      this.#editor?.layout();
-    });
   }
 
   disconnectedCallback() {
@@ -200,11 +195,17 @@ export class CoderApp extends HTMLElement {
     
     await this.#loadMonaco();
     
+    // Get the parent container for dimensions (editor-container, not editor-wrapper)
+    const editorContainer = this.shadowRoot.querySelector('.editor-container');
+    
+    // Monaco needs its CSS to work - copy styles into shadow DOM
+    await this.#injectMonacoStyles();
+    
     this.#editor = this.#monaco.editor.create(this.#editorContainer, {
       value: '',
       language: 'plaintext',
       theme: 'clawd-dark',
-      automaticLayout: false,
+      automaticLayout: false, // We'll handle layout manually for Shadow DOM
       fontSize: 14,
       fontFamily: "'SF Mono', 'Fira Code', 'JetBrains Mono', 'Menlo', 'Monaco', 'Consolas', monospace",
       lineHeight: 22,
@@ -243,18 +244,29 @@ export class CoderApp extends HTMLElement {
       this.#updateCursorPosition(e.position);
     });
     
-    // Start observing container size
-    this.#resizeObserver?.observe(this.#editorContainer);
+    // Set up ResizeObserver on the parent container for proper Shadow DOM support
+    this.#resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (this.#editor) {
+          const { width, height } = entry.contentRect;
+          // Only layout if we have valid dimensions
+          if (width > 0 && height > 0) {
+            this.#editor.layout({ width, height });
+          }
+        }
+      }
+    });
+    this.#resizeObserver.observe(editorContainer);
     
     return this.#editor;
   }
 
   /**
    * Open a file in the editor
-   * @param {string} path - File path
+   * @param {string} [path] - File path (optional)
    */
   async open(path) {
-    this.#filePath = path;
+    this.#filePath = path || null;
     this.setAttribute('open', '');
     document.addEventListener('keydown', this.#boundHandleKeyDown);
     
@@ -265,19 +277,32 @@ export class CoderApp extends HTMLElement {
     systemSounds.open();
     
     // Update title
-    const fileName = path.split('/').pop();
+    const fileName = path ? path.split('/').pop() : 'Untitled';
     this.#titleElement.textContent = fileName;
     
     // Detect language from extension
-    const language = this.#getLanguageFromPath(path);
+    const language = path ? this.#getLanguageFromPath(path) : 'plaintext';
     this.#updateLanguageInfo(language);
     
+    // Wait for element to be visible before initializing Monaco
+    // This ensures the container has proper dimensions
+    await this.#waitForVisibility();
+    
     try {
-      // Ensure editor is created
+      // Ensure editor is created (now that container is visible)
       const editor = await this.#getEditor();
       
-      // Load content
-      await this.#loadFile();
+      // Force initial layout with explicit dimensions
+      const editorContainer = this.shadowRoot.querySelector('.editor-container');
+      const rect = editorContainer.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        editor.layout({ width: rect.width, height: rect.height });
+      }
+      
+      // Load content (only if path provided)
+      if (path) {
+        await this.#loadFile();
+      }
       
       // Set language
       const model = editor.getModel();
@@ -285,11 +310,8 @@ export class CoderApp extends HTMLElement {
         this.#monaco.editor.setModelLanguage(model, language);
       }
       
-      // Focus editor
-      setTimeout(() => {
-        editor.focus();
-        this.#showLoading(false);
-      }, 100);
+      editor.focus();
+      this.#showLoading(false);
     } catch (err) {
       console.error('[CoderApp] Failed to open:', err);
       this.#setStatus('Failed to load');
@@ -300,6 +322,52 @@ export class CoderApp extends HTMLElement {
       bubbles: true, 
       detail: { path } 
     }));
+  }
+  
+  /**
+   * Inject Monaco CSS into shadow DOM
+   * Monaco injects styles into document.head, but we need them in shadow DOM
+   */
+  async #injectMonacoStyles() {
+    // Find Monaco styles in document head
+    const monacoStyles = document.querySelectorAll('style[data-name^="vs/"], link[href*="monaco"]');
+    
+    // Also inject from CDN directly
+    const styleLink = document.createElement('link');
+    styleLink.rel = 'stylesheet';
+    styleLink.href = `${MONACO_CDN}/min/vs/editor/editor.main.css`;
+    this.shadowRoot.appendChild(styleLink);
+    
+    // Wait for stylesheet to load
+    await new Promise((resolve) => {
+      styleLink.onload = resolve;
+      styleLink.onerror = resolve; // Continue even if it fails
+    });
+    
+    // Copy any inline Monaco styles
+    monacoStyles.forEach(style => {
+      const clone = style.cloneNode(true);
+      this.shadowRoot.appendChild(clone);
+    });
+  }
+
+  /**
+   * Wait for the component to be visible with proper dimensions
+   */
+  #waitForVisibility() {
+    return new Promise((resolve) => {
+      const checkVisibility = () => {
+        const container = this.shadowRoot.querySelector('.editor-container');
+        const rect = container?.getBoundingClientRect();
+        if (rect && rect.width > 0 && rect.height > 0) {
+          resolve();
+        } else {
+          requestAnimationFrame(checkVisibility);
+        }
+      };
+      // Start checking on next frame after 'open' attribute is set
+      requestAnimationFrame(checkVisibility);
+    });
   }
 
   /**
@@ -592,6 +660,15 @@ export class CoderApp extends HTMLElement {
    */
   get filePath() {
     return this.#filePath;
+  }
+
+  /**
+   * Get current working directory (directory of current file)
+   * Used by drop-zone for determining upload destination
+   */
+  get currentWorkingDirectory() {
+    if (!this.#filePath) return '/projects';
+    return this.#filePath.substring(0, this.#filePath.lastIndexOf('/')) || '/projects';
   }
 
   /**

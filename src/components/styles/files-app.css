@@ -142,43 +142,79 @@
 .canvas-container {
   flex: 1;
   position: relative;
-  overflow: hidden;
-  touch-action: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  touch-action: pan-y pinch-zoom;
   pointer-events: auto;
+  
+  /* Auto-hide scrollbar - only show when scrolling/hovering */
+  scrollbar-width: none; /* Firefox: hide by default */
+  scrollbar-gutter: stable;
 }
 
-/* Canvas - zoomable area */
+/* Show scrollbar on hover/interaction */
+.canvas-container:hover,
+.canvas-container:focus-within {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(1 0 0 / 0.2) transparent;
+}
+
+/* Webkit auto-hide scrollbar */
+.canvas-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.canvas-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.canvas-container::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+  transition: background 0.3s ease;
+}
+
+.canvas-container:hover::-webkit-scrollbar-thumb,
+.canvas-container:active::-webkit-scrollbar-thumb {
+  background: oklch(1 0 0 / 0.2);
+}
+
+.canvas-container::-webkit-scrollbar-thumb:hover {
+  background: oklch(1 0 0 / 0.35);
+}
+
+/* Canvas - zoomable grid area */
 .canvas {
-  position: absolute;
-  inset: 0;
-  transform-origin: center center;
+  min-height: 100%;
+  transform-origin: top center;
   transition: transform 0.3s ease;
   will-change: transform;
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  justify-content: center;
-  gap: 2.5rem;
-  padding: 3rem;
   pointer-events: auto;
+  
+  /* Modern CSS Grid - auto-fit responsive columns */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 2rem;
+  padding: 2.5rem;
+  align-content: start;
+  justify-items: center;
 }
 
 /* File/Folder Node - minimal style */
 .node {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  display: grid;
+  place-items: center;
   gap: 0.75rem;
-  padding: 1.25rem 1.25rem;
+  padding: 1.25rem;
   border-radius: var(--radius-md, 20px);
   cursor: pointer;
-  transition: all 0.2s ease;
-  min-width: 120px;
+  transition: background 0.2s ease, transform 0.2s ease;
+  width: 100%;
+  max-width: 140px;
+  aspect-ratio: 1 / 1.1;
   opacity: 0;
   animation: node-appear 0.5s ease forwards;
   pointer-events: auto;
-  position: relative;
-  z-index: 1;
 }
 
 @keyframes node-appear {
@@ -218,9 +254,8 @@
 .node-icon {
   width: 4.5rem;
   height: 4.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   transition: transform 0.2s ease;
 }
 
@@ -275,13 +310,12 @@
 .empty-state {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-content: center;
   gap: 1.5rem;
+  justify-items: center;
   color: oklch(1 0 0 / 0.4);
-  pointer-events: none; /* Don't block underlying clicks */
+  pointer-events: none;
 }
 
 .empty-state svg {
@@ -304,10 +338,9 @@
 .loading {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none; /* Don't block underlying clicks */
+  display: grid;
+  place-items: center;
+  pointer-events: none;
 }
 
 .loading-spinner {
@@ -400,6 +433,117 @@
   outline-offset: 4px;
 }
 
+/* Dragging state */
+.node.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+}
+
+.node[draggable="true"] {
+  cursor: grab;
+}
+
+.node[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* Context Menu */
+.context-menu {
+  position: absolute;
+  z-index: 1000;
+  min-width: 180px;
+  background: oklch(0.2 0.02 25 / 0.95);
+  border: 1px solid oklch(1 0 0 / 0.15);
+  border-radius: var(--radius-md, 16px);
+  padding: 0.5rem;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 
+    0 8px 32px oklch(0 0 0 / 0.3),
+    0 0 0 1px oklch(1 0 0 / 0.05) inset;
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.95) translateY(-8px);
+  transform-origin: top left;
+  transition: 
+    opacity 0.2s ease,
+    visibility 0.2s ease,
+    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.context-menu.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1) translateY(0);
+  pointer-events: auto;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm, 10px);
+  cursor: pointer;
+  font-family: var(--font-body, 'Cormorant Garamond', serif);
+  font-size: 0.95rem;
+  font-style: italic;
+  color: oklch(1 0 0 / 0.8);
+  letter-spacing: 0.04em;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.context-menu-item:hover {
+  background: oklch(1 0 0 / 0.1);
+  color: oklch(1 0 0 / 0.95);
+}
+
+.context-menu-item:active {
+  background: oklch(1 0 0 / 0.15);
+  transform: scale(0.98);
+}
+
+.context-menu-item svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.context-menu-item:hover svg {
+  opacity: 1;
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: oklch(1 0 0 / 0.1);
+  margin: 0.4rem 0.5rem;
+}
+
+/* Danger action (delete) */
+.context-menu-item--danger {
+  color: oklch(0.7 0.15 25);
+}
+
+.context-menu-item--danger:hover {
+  background: oklch(0.7 0.15 25 / 0.15);
+  color: oklch(0.8 0.18 25);
+}
+
+.context-menu-item--danger svg {
+  stroke: currentColor;
+}
+
 /* HDR Enhancement */
 @media (dynamic-range: high) {
   .back-btn:hover,
@@ -422,6 +566,14 @@
   .time-slider-thumb {
     box-shadow: 0 0 15px oklch(1.2 0 0 / 0.4);
   }
+
+  .context-menu-item:hover {
+    color: var(--hdr-white-bright, oklch(1.15 0 0));
+  }
+
+  .context-menu-item--danger:hover {
+    color: oklch(0.9 0.2 25);
+  }
 }
 
 /* Responsive */
@@ -431,12 +583,13 @@
   }
 
   .canvas {
-    gap: 1.5rem;
-    padding: 2rem 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 1.25rem;
+    padding: 1.5rem;
   }
 
   .node {
-    min-width: 90px;
+    max-width: 110px;
     padding: 1rem 0.75rem;
   }
 
@@ -457,5 +610,13 @@
 
   .time-scrubber {
     padding: 1rem 1.5rem;
+  }
+}
+
+/* Large screens - limit max columns for better readability */
+@media (min-width: 1200px) {
+  .canvas {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 180px));
+    justify-content: center;
   }
 }

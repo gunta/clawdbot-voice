@@ -127,7 +127,7 @@ async function init() {
       
       // 1. Import Database WASM (SQLite for browser)
       console.log('[AgentFS] Loading SQLite WASM...');
-      const { Database } = await import(/* @vite-ignore */ DATABASE_WASM_PATH);
+      const { Database } = await import(DATABASE_WASM_PATH);
       
       // 2. Create/open the database (in-memory with IndexedDB persistence via OPFS)
       // For browser, we use ':memory:' with OPFS for persistence
@@ -136,7 +136,7 @@ async function init() {
       console.log('[AgentFS] SQLite connected');
       
       // 3. Import AgentFS and initialize with the database
-      const { AgentFS } = await import(/* @vite-ignore */ AGENTFS_PATH);
+      const { AgentFS } = await import(AGENTFS_PATH);
       agent = await AgentFS.openWith(db);
       console.log('[AgentFS] Connected:', AGENT_ID);
       

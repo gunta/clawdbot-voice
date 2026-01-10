@@ -46,7 +46,7 @@
   justify-content: center;
   padding: 0;
   -webkit-tap-highlight-color: transparent;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition: opacity 0.3s ease, border-color 0.2s ease, background 0.2s ease;
 }
 
 .close-btn:hover {
@@ -74,6 +74,13 @@
 
 .close-btn:active svg {
   stroke: var(--color-white, oklch(1 0 0));
+}
+
+/* Fade out close button when idle (no mouse movement for 5s) */
+:host([idle]) .close-btn {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
 }
 
 /* Date display - human greeting above clock */

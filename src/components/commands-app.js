@@ -3549,6 +3549,14 @@ Commands:
   get cwd() {
     return this.#cwd;
   }
+
+  /**
+   * Get current working directory (alias for cwd)
+   * Used by drop-zone for determining upload destination
+   */
+  get currentWorkingDirectory() {
+    return this.#cwd;
+  }
 }
 
 customElements.define('commands-app', CommandsApp);
