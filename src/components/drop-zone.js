@@ -284,13 +284,24 @@ export class DropZone extends HTMLElement {
         // Read file as ArrayBuffer for binary files, text for text files
         const content = await this.#readFile(file);
         
+        // Debug: log what we're writing
+        console.log('[DropZone] Content type:', typeof content, content?.constructor?.name);
+        console.log('[DropZone] Content size:', content?.length || content?.byteLength);
+        
         // Construct full path
         const fullPath = this.#targetPath === '/' 
           ? `/${file.name}` 
           : `${this.#targetPath}/${file.name}`;
         
+        // For binary files, convert ArrayBuffer to Uint8Array for better compatibility
+        const dataToWrite = content instanceof ArrayBuffer 
+          ? new Uint8Array(content)
+          : content;
+        
+        console.log('[DropZone] Writing as:', dataToWrite?.constructor?.name);
+        
         // Write to AgentFS
-        await agentfs.writeFile(fullPath, content);
+        await agentfs.writeFile(fullPath, dataToWrite);
         
         console.log('[DropZone] Uploaded:', fullPath);
         

@@ -192,6 +192,17 @@ export class ImageViewerApp extends HTMLElement {
       await agentfs.init();
       const data = await agentfs.readFile(path);
       
+      // Debug: log what we got back
+      console.log('[ImageViewer] Data type:', typeof data, data?.constructor?.name);
+      console.log('[ImageViewer] Data length:', data?.length || data?.byteLength);
+      if (data && typeof data === 'object') {
+        console.log('[ImageViewer] Has buffer:', !!data.buffer, 'byteOffset:', data.byteOffset, 'byteLength:', data.byteLength);
+      }
+      
+      if (!data) {
+        throw new Error('File not found or empty');
+      }
+      
       // Determine MIME type from extension
       const ext = path.split('.').pop()?.toLowerCase();
       const mimeTypes = {
@@ -219,6 +230,13 @@ export class ImageViewerApp extends HTMLElement {
         blob = new Blob([data], { type: mimeType });
       } else if (data instanceof Uint8Array || data instanceof ArrayBuffer) {
         blob = new Blob([data], { type: mimeType });
+      } else if (data && typeof data === 'object') {
+        // Handle Buffer objects (from AgentFS/buffer polyfill)
+        // Buffer has a .buffer property (ArrayBuffer) or can be converted to Uint8Array
+        const bytes = data.buffer instanceof ArrayBuffer 
+          ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+          : new Uint8Array(data);
+        blob = new Blob([bytes], { type: mimeType });
       } else {
         // Fallback - try to use as-is
         blob = new Blob([data], { type: mimeType });
