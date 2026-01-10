@@ -1,184 +1,915 @@
 /**
- * Settings App - OS1 Configuration Panel
- * Beautiful, minimal settings UI following Her aesthetic
- * 
- * Usage: <settings-app></settings-app>
- * Methods: open(), close(), toggle()
- * Events: 'open', 'close', 'config-change'
- * 
- * Now integrates with XState navigation service for modal management
+ * Settings App Component
+ * Application settings and preferences
+ * Migrated to Preact + HTM + Signals
  */
-
+import { html } from 'htm/preact';
+import { useSignal, useSignalEffect, computed } from '@preact/signals';
+import { useEffect } from 'preact/hooks';
+import { createShadowComponent } from '../lib/shadow-component.js';
+import { ErrorBoundary } from '../lib/error-boundary.js';
+import { navigate } from '../services/navigation-signals.js';
 import { getConfig, updateConfig, DEFAULT_CONFIG } from '../services/agentfs.js';
 import { systemSounds, navigationService } from '../services/index.js';
 
-export class SettingsApp extends HTMLElement {
-  #isOpen = false;
-  #config = null;
-  #boundHandleKeydown = null;
-  #unsubscribeNav = null;
+const styles = `
+/**
+ * Settings App - Her OS1 Configuration Panel
+ * Beautiful, minimal settings following Her aesthetic
+ * HDR-enabled with OKLCH colors
+ */
 
-  constructor() {
-    super();
-    this.#boundHandleKeydown = this.#handleKeydown.bind(this);
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-app, 50);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg, oklch(0.12 0.01 250));
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(20px);
+  transition:
+    opacity 0.3s ease,
+    visibility 0.3s ease,
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+:host([open]) {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: max(env(safe-area-inset-top, 16px), 16px) 20px 16px;
+  background: oklch(0.15 0.01 250 / 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid oklch(1 0 0 / 0.08);
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.title {
+  font-family: var(--font-display, 'Bodoni Moda', Georgia, serif);
+  font-size: 1.25rem;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: oklch(1 0 0 / 0.9);
+}
+
+.back-btn,
+.close-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: oklch(1 0 0 / 0.06);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.2s ease;
+}
+
+.back-btn:hover,
+.close-btn:hover {
+  background: oklch(1 0 0 / 0.12);
+}
+
+.back-btn:active,
+.close-btn:active {
+  background: oklch(1 0 0 / 0.18);
+}
+
+.back-btn svg,
+.close-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke: oklch(1 0 0 / 0.7);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+/* Content */
+.content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px 20px;
+  padding-bottom: max(env(safe-area-inset-bottom, 24px), 80px);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Sections */
+.settings-section {
+  margin-bottom: 32px;
+}
+
+.settings-section:last-child {
+  margin-bottom: 0;
+}
+
+.section-title {
+  font-family: var(--font-display, 'Bodoni Moda', Georgia, serif);
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: oklch(1 0 0 / 0.4);
+  margin: 0 0 16px 4px;
+}
+
+/* Setting Row */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  background: oklch(1 0 0 / 0.04);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  transition: background 0.2s ease;
+}
+
+.setting-row:hover {
+  background: oklch(1 0 0 / 0.06);
+}
+
+.setting-row:last-child {
+  margin-bottom: 0;
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.setting-label {
+  font-family: var(--font-body, 'Cormorant Garamond', Georgia, serif);
+  font-size: 1rem;
+  font-weight: 500;
+  color: oklch(1 0 0 / 0.9);
+  letter-spacing: 0.02em;
+}
+
+.setting-description {
+  font-family: var(--font-body, 'Cormorant Garamond', Georgia, serif);
+  font-size: 0.85rem;
+  color: oklch(1 0 0 / 0.45);
+  letter-spacing: 0.01em;
+}
+
+.setting-control {
+  flex-shrink: 0;
+}
+
+.setting-value {
+  font-family: var(--font-body, 'Cormorant Garamond', Georgia, serif);
+  font-size: 0.9rem;
+  color: oklch(1 0 0 / 0.5);
+  letter-spacing: 0.02em;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 32px;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: oklch(0.3 0.01 250);
+  border-radius: 32px;
+  transition: background 0.25s ease;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  left: 3px;
+  bottom: 3px;
+  background: oklch(1 0 0 / 0.9);
+  border-radius: 50%;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px oklch(0 0 0 / 0.2);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--color-red, oklch(0.55 0.155 25));
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.toggle-switch input:focus-visible + .toggle-slider {
+  outline: 2px solid var(--color-red, oklch(0.55 0.155 25));
+  outline-offset: 2px;
+}
+
+/* Select Control */
+.select-control {
+  appearance: none;
+  -webkit-appearance: none;
+  background: oklch(1 0 0 / 0.08);
+  border: 1px solid oklch(1 0 0 / 0.12);
+  border-radius: 8px;
+  padding: 8px 32px 8px 12px;
+  font-family: var(--font-body, 'Cormorant Garamond', Georgia, serif);
+  font-size: 0.9rem;
+  color: oklch(1 0 0 / 0.85);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
+  min-width: 100px;
+}
+
+.select-control:hover {
+  background-color: oklch(1 0 0 / 0.12);
+  border-color: oklch(1 0 0 / 0.2);
+}
+
+.select-control:focus {
+  outline: 2px solid var(--color-red, oklch(0.55 0.155 25));
+  outline-offset: 2px;
+}
+
+.select-control option {
+  background: oklch(0.15 0.01 250);
+  color: oklch(1 0 0 / 0.9);
+}
+
+/* Range Slider */
+.slider-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100px;
+  height: 4px;
+  background: oklch(1 0 0 / 0.15);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+.range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: var(--color-red, oklch(0.55 0.155 25));
+  border-radius: 50%;
+  cursor: grab;
+  border: none;
+  box-shadow: 0 2px 6px oklch(0 0 0 / 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.range-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 10px oklch(0 0 0 / 0.4);
+}
+
+.range-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.05);
+}
+
+.range-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: var(--color-red, oklch(0.55 0.155 25));
+  border-radius: 50%;
+  cursor: grab;
+  border: none;
+  box-shadow: 0 2px 6px oklch(0 0 0 / 0.3);
+}
+
+.range-slider:focus-visible {
+  outline: 2px solid var(--color-red, oklch(0.55 0.155 25));
+  outline-offset: 4px;
+}
+
+.slider-value {
+  font-family: var(--font-body, 'Cormorant Garamond', Georgia, serif);
+  font-size: 0.85rem;
+  color: oklch(1 0 0 / 0.6);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* Action Button */
+.action-row {
+  justify-content: flex-start;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: oklch(1 0 0 / 0.06);
+  border: 1px solid oklch(1 0 0 / 0.1);
+  border-radius: 8px;
+  font-family: var(--font-body, 'Cormorant Garamond', Georgia, serif);
+  font-size: 0.9rem;
+  color: oklch(1 0 0 / 0.7);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.action-btn:hover {
+  background: oklch(1 0 0 / 0.1);
+  border-color: oklch(1 0 0 / 0.2);
+  color: oklch(1 0 0 / 0.9);
+}
+
+.action-btn:active {
+  background: oklch(1 0 0 / 0.14);
+}
+
+.action-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+/* Footer */
+.footer {
+  padding: 12px 20px max(env(safe-area-inset-bottom, 12px), 12px);
+  background: oklch(0.1 0.01 250 / 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid oklch(1 0 0 / 0.06);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.footer-text {
+  font-family: var(--font-body, 'Cormorant Garamond', Georgia, serif);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: oklch(1 0 0 / 0.3);
+}
+
+/* HDR Enhancement */
+@media (dynamic-range: high) {
+  .toggle-switch input:checked + .toggle-slider {
+    background: var(--hdr-red, oklch(0.65 0.2 25));
   }
 
-  connectedCallback() {
-    if (!this.shadowRoot) {
-      this.attachShadow({ mode: 'open' });
-      this.shadowRoot.innerHTML = this.#getTemplate();
-    }
-
-    this.#cacheElements();
-    this.#bindEvents();
-    this.#subscribeToNavigation();
+  .range-slider::-webkit-slider-thumb {
+    background: var(--hdr-red, oklch(0.65 0.2 25));
   }
 
-  disconnectedCallback() {
-    document.removeEventListener('keydown', this.#boundHandleKeydown);
-    if (this.#unsubscribeNav) {
-      this.#unsubscribeNav();
-      this.#unsubscribeNav = null;
-    }
+  .title {
+    color: var(--hdr-white-bright, oklch(1.15 0 0));
   }
 
-  /**
-   * Subscribe to navigation service state changes
-   */
-  #subscribeToNavigation() {
-    this.#unsubscribeNav = navigationService.subscribe(() => {
+  .setting-label {
+    color: var(--hdr-white-bright, oklch(1.1 0 0));
+  }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 500px) {
+  .header {
+    padding: max(env(safe-area-inset-top, 12px), 12px) 16px 12px;
+  }
+
+  .title {
+    font-size: 1.1rem;
+  }
+
+  .settings-scroll {
+    padding: 20px 16px;
+  }
+
+  .setting-row {
+    padding: 14px;
+    flex-wrap: wrap;
+  }
+
+  .slider-control {
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .range-slider {
+    flex: 1;
+  }
+}
+
+/* Landscape */
+@media (max-height: 500px) and (orientation: landscape) {
+  .settings-scroll {
+    padding: 16px 20px;
+  }
+
+  .settings-section {
+    margin-bottom: 24px;
+  }
+
+  .setting-row {
+    padding: 12px 16px;
+    margin-bottom: 6px;
+  }
+}
+
+/* Tablet and larger screens - centered modal panel */
+@media (min-width: 768px) {
+  :host {
+    background: oklch(0 0 0 / 0.5);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+  }
+
+  :host([open]) {
+    transform: none;
+  }
+
+  /* Panel container effect */
+  .header {
+    max-width: 560px;
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+    background: oklch(0.16 0.01 250);
+    border: 1px solid oklch(1 0 0 / 0.1);
+    border-bottom: none;
+    flex-shrink: 0;
+  }
+
+  .content {
+    max-width: 560px;
+    width: 100%;
+    background: oklch(0.13 0.01 250);
+    border-left: 1px solid oklch(1 0 0 / 0.1);
+    border-right: 1px solid oklch(1 0 0 / 0.1);
+    max-height: 60vh;
+    min-height: 200px;
+    box-shadow: 0 25px 80px oklch(0 0 0 / 0.5);
+  }
+
+  .settings-scroll {
+    padding: 28px 28px;
+  }
+
+  .footer {
+    max-width: 560px;
+    width: 100%;
+    border-radius: 0 0 20px 20px;
+    background: oklch(0.11 0.01 250);
+    border: 1px solid oklch(1 0 0 / 0.1);
+    border-top: none;
+    flex-shrink: 0;
+  }
+
+  .setting-row {
+    padding: 18px 20px;
+    border-radius: 14px;
+  }
+
+  .setting-row:hover {
+    background: oklch(1 0 0 / 0.08);
+  }
+}
+
+/* Large desktop screens */
+@media (min-width: 1024px) {
+  :host {
+    padding: 8vh 40px;
+  }
+
+  .header,
+  .content,
+  .footer {
+    max-width: 640px;
+  }
+
+  .content {
+    max-height: 70vh;
+  }
+
+  .settings-scroll {
+    padding: 32px 32px;
+  }
+
+  .settings-section {
+    margin-bottom: 36px;
+  }
+
+  .setting-row {
+    padding: 20px 24px;
+    margin-bottom: 10px;
+  }
+
+  .setting-label {
+    font-size: 1.05rem;
+  }
+
+  .setting-description {
+    font-size: 0.9rem;
+  }
+
+  .range-slider {
+    width: 160px;
+  }
+
+  .select-control {
+    min-width: 160px;
+    padding: 10px 36px 10px 14px;
+  }
+}
+
+/* Extra large screens */
+@media (min-width: 1440px) {
+  .header,
+  .content,
+  .footer {
+    max-width: 720px;
+  }
+
+  .settings-scroll {
+    padding: 40px 40px;
+  }
+
+  .setting-row {
+    padding: 22px 28px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  :host {
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+    transform: none;
+  }
+
+  .toggle-slider,
+  .toggle-slider::before,
+  .range-slider::-webkit-slider-thumb {
+    transition: none;
+  }
+}
+
+/* Dark mode adjustments (default) */
+:host {
+  color-scheme: dark;
+}
+`;
+
+function SettingsApp({ host }) {
+  const isOpen = useSignal(false);
+  const config = useSignal(null);
+  const isLoading = useSignal(true);
+
+  // Slider display values
+  const voiceRateDisplay = computed(() => {
+    const rate = config.value?.voice?.rate ?? 1.0;
+    return `${rate.toFixed(1)}×`;
+  });
+
+  const voicePitchDisplay = computed(() => {
+    const pitch = config.value?.voice?.pitch ?? 1.0;
+    return pitch.toFixed(1);
+  });
+
+  // Load config on mount
+  useEffect(() => {
+    loadConfig();
+  }, []);
+
+  // Subscribe to navigation service
+  useEffect(() => {
+    const unsubscribe = navigationService.subscribe(() => {
       const isSettingsModal = navigationService.isModalPresented('settings');
-      
-      if (isSettingsModal && !this.#isOpen) {
-        this.#showModal();
-      } else if (!isSettingsModal && this.#isOpen) {
-        this.#hideModal();
+
+      if (isSettingsModal && !isOpen.value) {
+        showModal();
+      } else if (!isSettingsModal && isOpen.value) {
+        hideModal();
       }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  // Keyboard handler for Escape key
+  useEffect(() => {
+    const handleKeydown = (e) => {
+      if (e.key === 'Escape' && isOpen.value) {
+        e.preventDefault();
+        handleClose();
+      }
+    };
+
+    if (isOpen.value) {
+      document.addEventListener('keydown', handleKeydown);
+      return () => document.removeEventListener('keydown', handleKeydown);
+    }
+  }, [isOpen.value]);
+
+  const loadConfig = async () => {
+    try {
+      isLoading.value = true;
+      const loadedConfig = await getConfig();
+      config.value = loadedConfig || { ...DEFAULT_CONFIG };
+    } catch (err) {
+      console.error('[SettingsApp] Failed to load config:', err);
+      config.value = { ...DEFAULT_CONFIG };
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  const showModal = async () => {
+    if (isOpen.value) return;
+    isOpen.value = true;
+    host.setAttribute('open', '');
+    await loadConfig();
+    console.log('[SettingsApp] Opened');
+  };
+
+  const hideModal = () => {
+    if (!isOpen.value) return;
+    isOpen.value = false;
+    host.removeAttribute('open');
+    console.log('[SettingsApp] Closed');
+  };
+
+  const handleClose = () => {
+    systemSounds.close();
+    navigate.dismiss();
+  };
+
+  const handleBack = () => {
+    systemSounds.close();
+    navigate.back();
+  };
+
+  const updateConfigValue = async (path, value) => {
+    // Build nested object from dot path
+    const parts = path.split('.');
+    const update = {};
+    let current = update;
+
+    for (let i = 0; i < parts.length - 1; i++) {
+      current[parts[i]] = {};
+      current = current[parts[i]];
+    }
+    current[parts[parts.length - 1]] = value;
+
+    try {
+      const newConfig = await updateConfig(update);
+      config.value = newConfig;
+      systemSounds.tap();
+
+      // Dispatch config-change event
+      host.dispatchEvent(new CustomEvent('config-change', {
+        bubbles: true,
+        detail: { path, value, config: newConfig }
+      }));
+
+      console.log('[SettingsApp] Config updated:', path, '=', value);
+    } catch (err) {
+      console.error('[SettingsApp] Failed to update config:', err);
+    }
+  };
+
+  const handleResetToDefaults = async () => {
+    if (!confirm('Reset all settings to defaults?')) return;
+
+    try {
+      const newConfig = await updateConfig(DEFAULT_CONFIG);
+      config.value = newConfig;
+      systemSounds.success();
+
+      host.dispatchEvent(new CustomEvent('config-change', {
+        bubbles: true,
+        detail: { path: '*', value: DEFAULT_CONFIG, config: newConfig }
+      }));
+
+      console.log('[SettingsApp] Config reset to defaults');
+    } catch (err) {
+      console.error('[SettingsApp] Failed to reset config:', err);
+    }
+  };
+
+  // Expose public API
+  host.open = () => {
+    systemSounds.open();
+    navigationService.present('settings');
+  };
+
+  host.close = () => {
+    systemSounds.close();
+    navigationService.dismiss();
+  };
+
+  host.toggle = () => {
+    isOpen.value ? host.close() : host.open();
+  };
+
+  if (!Object.getOwnPropertyDescriptor(host, 'isOpen')) {
+    Object.defineProperty(host, 'isOpen', {
+      configurable: true,
+      get: () => isOpen.value
     });
   }
 
-  /**
-   * Show the modal (internal - called by navigation subscription)
-   */
-  async #showModal() {
-    if (this.#isOpen) return;
-
-    this.#isOpen = true;
-    this.setAttribute('open', '');
-    
-    document.addEventListener('keydown', this.#boundHandleKeydown);
-    
-    await this.#loadConfig();
-    
-    this.dispatchEvent(new CustomEvent('open'));
-    console.log('[SettingsApp] Opened');
+  if (isLoading.value || !config.value) {
+    return html`
+      <${ErrorBoundary} name="SettingsApp">
+        <div class="header">
+          <div class="header-left">
+            <button class="back-btn" type="button" onClick=${handleBack} aria-label="Go back">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M15 18L9 12L15 6" />
+              </svg>
+            </button>
+            <span class="title">settings</span>
+          </div>
+          <button class="close-btn" type="button" onClick=${handleClose} aria-label="Close settings">
+            <svg viewBox="0 0 24 24" fill="none">
+              <line x1="6" y1="6" x2="18" y2="18" />
+              <line x1="18" y1="6" x2="6" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="content">
+          <div class="settings-scroll">
+            <p style="text-align: center; color: oklch(1 0 0 / 0.5); padding: 2rem;">Loading settings...</p>
+          </div>
+        </div>
+      <//>
+    `;
   }
 
-  /**
-   * Hide the modal (internal - called by navigation subscription)
-   */
-  #hideModal() {
-    if (!this.#isOpen) return;
-
-    this.#isOpen = false;
-    this.removeAttribute('open');
-    
-    document.removeEventListener('keydown', this.#boundHandleKeydown);
-    
-    this.dispatchEvent(new CustomEvent('close'));
-    console.log('[SettingsApp] Closed');
-  }
-
-  #getTemplate() {
-    return `
-      <style>
-        /* Critical inline styles to prevent FOUC */
-        :host {
-          position: fixed;
-          inset: 0;
-          opacity: 0;
-          visibility: hidden;
-        }
-      </style>
-      <link rel="stylesheet" href="src/components/styles/settings-app.css">
-
+  return html`
+    <${ErrorBoundary} name="SettingsApp">
       <div class="header">
         <div class="header-left">
-          <button class="back-btn" type="button" aria-label="Go back">
+          <button class="back-btn" type="button" onClick=${handleBack} aria-label="Go back">
             <svg viewBox="0 0 24 24" fill="none">
               <path d="M15 18L9 12L15 6" />
             </svg>
           </button>
           <span class="title">settings</span>
         </div>
-        <button class="close-btn" type="button" aria-label="Close settings">
+        <button class="close-btn" type="button" onClick=${handleClose} aria-label="Close settings">
           <svg viewBox="0 0 24 24" fill="none">
             <line x1="6" y1="6" x2="18" y2="18" />
             <line x1="18" y1="6" x2="6" y2="18" />
           </svg>
         </button>
       </div>
-      
+
       <div class="content">
         <div class="settings-scroll">
-          
+
           <!-- Voice Section -->
           <section class="settings-section">
             <h2 class="section-title">voice</h2>
-            
+
             <div class="setting-row">
               <div class="setting-info">
                 <span class="setting-label">character</span>
                 <span class="setting-description">voice persona</span>
               </div>
               <div class="setting-control">
-                <select id="voiceCharacter" class="select-control">
+                <select
+                  class="select-control"
+                  value=${config.value.voice?.character || 'her'}
+                  onChange=${(e) => updateConfigValue('voice.character', e.target.value)}
+                >
                   <option value="her">her</option>
                   <option value="clawd">clawd</option>
                 </select>
               </div>
             </div>
-            
+
             <div class="setting-row">
               <div class="setting-info">
                 <span class="setting-label">provider</span>
                 <span class="setting-description">speech synthesis engine</span>
               </div>
               <div class="setting-control">
-                <select id="voiceProvider" class="select-control">
+                <select
+                  class="select-control"
+                  value=${config.value.voice?.provider || 'native'}
+                  onChange=${(e) => updateConfigValue('voice.provider', e.target.value)}
+                >
                   <option value="native">native</option>
                   <option value="web">web speech</option>
                 </select>
               </div>
             </div>
-            
+
             <div class="setting-row">
               <div class="setting-info">
                 <span class="setting-label">speed</span>
                 <span class="setting-description">speaking rate</span>
               </div>
               <div class="setting-control slider-control">
-                <input type="range" id="voiceRate" min="0.5" max="2" step="0.1" value="1" class="range-slider">
-                <span class="slider-value" id="voiceRateValue">1.0×</span>
+                <input
+                  type="range"
+                  class="range-slider"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value=${config.value.voice?.rate || 1}
+                  onInput=${(e) => {
+                    // Update config on change (not just input for performance)
+                  }}
+                  onChange=${(e) => updateConfigValue('voice.rate', parseFloat(e.target.value))}
+                />
+                <span class="slider-value">${voiceRateDisplay}</span>
               </div>
             </div>
-            
+
             <div class="setting-row">
               <div class="setting-info">
                 <span class="setting-label">pitch</span>
                 <span class="setting-description">voice tone</span>
               </div>
               <div class="setting-control slider-control">
-                <input type="range" id="voicePitch" min="0.5" max="2" step="0.1" value="1" class="range-slider">
-                <span class="slider-value" id="voicePitchValue">1.0</span>
+                <input
+                  type="range"
+                  class="range-slider"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value=${config.value.voice?.pitch || 1}
+                  onChange=${(e) => updateConfigValue('voice.pitch', parseFloat(e.target.value))}
+                />
+                <span class="slider-value">${voicePitchDisplay}</span>
               </div>
             </div>
           </section>
-          
+
           <!-- Audio Section -->
           <section class="settings-section">
             <h2 class="section-title">audio</h2>
-            
+
             <div class="setting-row">
               <div class="setting-info">
                 <span class="setting-label">haptics</span>
@@ -186,12 +917,16 @@ export class SettingsApp extends HTMLElement {
               </div>
               <div class="setting-control">
                 <label class="toggle-switch">
-                  <input type="checkbox" id="audioHaptics">
+                  <input
+                    type="checkbox"
+                    checked=${config.value.audio?.haptics ?? true}
+                    onChange=${(e) => updateConfigValue('audio.haptics', e.target.checked)}
+                  />
                   <span class="toggle-slider"></span>
                 </label>
               </div>
             </div>
-            
+
             <div class="setting-row">
               <div class="setting-info">
                 <span class="setting-label">chimes</span>
@@ -199,17 +934,21 @@ export class SettingsApp extends HTMLElement {
               </div>
               <div class="setting-control">
                 <label class="toggle-switch">
-                  <input type="checkbox" id="audioChimes">
+                  <input
+                    type="checkbox"
+                    checked=${config.value.audio?.chimes ?? true}
+                    onChange=${(e) => updateConfigValue('audio.chimes', e.target.checked)}
+                  />
                   <span class="toggle-slider"></span>
                 </label>
               </div>
             </div>
           </section>
-          
+
           <!-- Display Section -->
           <section class="settings-section">
             <h2 class="section-title">display</h2>
-            
+
             <div class="setting-row">
               <div class="setting-info">
                 <span class="setting-label">keep awake</span>
@@ -217,12 +956,16 @@ export class SettingsApp extends HTMLElement {
               </div>
               <div class="setting-control">
                 <label class="toggle-switch">
-                  <input type="checkbox" id="displayWakeLock">
+                  <input
+                    type="checkbox"
+                    checked=${config.value.display?.wakeLock ?? true}
+                    onChange=${(e) => updateConfigValue('display.wakeLock', e.target.checked)}
+                  />
                   <span class="toggle-slider"></span>
                 </label>
               </div>
             </div>
-            
+
             <div class="setting-row">
               <div class="setting-info">
                 <span class="setting-label">animations</span>
@@ -230,19 +973,27 @@ export class SettingsApp extends HTMLElement {
               </div>
               <div class="setting-control">
                 <label class="toggle-switch">
-                  <input type="checkbox" id="displayAnimations">
+                  <input
+                    type="checkbox"
+                    checked=${config.value.display?.animations ?? true}
+                    onChange=${(e) => updateConfigValue('display.animations', e.target.checked)}
+                  />
                   <span class="toggle-slider"></span>
                 </label>
               </div>
             </div>
-            
+
             <div class="setting-row">
               <div class="setting-info">
                 <span class="setting-label">theme</span>
                 <span class="setting-description">color scheme</span>
               </div>
               <div class="setting-control">
-                <select id="displayTheme" class="select-control">
+                <select
+                  class="select-control"
+                  value=${config.value.theme || 'dark'}
+                  onChange=${(e) => updateConfigValue('theme', e.target.value)}
+                >
                   <option value="dark">dark</option>
                   <option value="light">light</option>
                   <option value="auto">auto</option>
@@ -250,23 +1001,23 @@ export class SettingsApp extends HTMLElement {
               </div>
             </div>
           </section>
-          
+
           <!-- System Section -->
           <section class="settings-section">
             <h2 class="section-title">system</h2>
-            
+
             <div class="setting-row">
               <div class="setting-info">
                 <span class="setting-label">version</span>
                 <span class="setting-description">CLAWD OS1</span>
               </div>
               <div class="setting-control">
-                <span class="setting-value" id="systemVersion">1.0.0</span>
+                <span class="setting-value">${config.value.version || '1.0.0'}</span>
               </div>
             </div>
-            
+
             <div class="setting-row action-row">
-              <button class="action-btn" id="resetBtn" type="button">
+              <button class="action-btn" type="button" onClick=${handleResetToDefaults}>
                 <svg viewBox="0 0 24 24" fill="none">
                   <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                   <path d="M3 3v5h5" />
@@ -275,195 +1026,18 @@ export class SettingsApp extends HTMLElement {
               </button>
             </div>
           </section>
-          
+
         </div>
       </div>
-      
+
       <div class="footer">
         <span class="footer-text">changes saved automatically</span>
       </div>
-    `;
-  }
-
-  #cacheElements() {
-    const sr = this.shadowRoot;
-    this.elements = {
-      closeBtn: sr.querySelector('.close-btn'),
-      backBtn: sr.querySelector('.back-btn'),
-      resetBtn: sr.getElementById('resetBtn'),
-      // Voice
-      voiceCharacter: sr.getElementById('voiceCharacter'),
-      voiceProvider: sr.getElementById('voiceProvider'),
-      voiceRate: sr.getElementById('voiceRate'),
-      voiceRateValue: sr.getElementById('voiceRateValue'),
-      voicePitch: sr.getElementById('voicePitch'),
-      voicePitchValue: sr.getElementById('voicePitchValue'),
-      // Audio
-      audioHaptics: sr.getElementById('audioHaptics'),
-      audioChimes: sr.getElementById('audioChimes'),
-      // Display
-      displayWakeLock: sr.getElementById('displayWakeLock'),
-      displayAnimations: sr.getElementById('displayAnimations'),
-      displayTheme: sr.getElementById('displayTheme'),
-      // System
-      systemVersion: sr.getElementById('systemVersion')
-    };
-  }
-
-  #bindEvents() {
-    // Close/back buttons
-    this.elements.closeBtn?.addEventListener('click', () => this.close());
-    this.elements.backBtn?.addEventListener('click', () => this.close());
-    this.elements.resetBtn?.addEventListener('click', () => this.#resetToDefaults());
-
-    // Voice settings
-    this.elements.voiceCharacter?.addEventListener('change', (e) => {
-      this.#updateConfigValue('voice.character', e.target.value);
-    });
-    this.elements.voiceProvider?.addEventListener('change', (e) => {
-      this.#updateConfigValue('voice.provider', e.target.value);
-    });
-    this.elements.voiceRate?.addEventListener('input', (e) => {
-      const value = parseFloat(e.target.value);
-      this.elements.voiceRateValue.textContent = `${value.toFixed(1)}×`;
-    });
-    this.elements.voiceRate?.addEventListener('change', (e) => {
-      this.#updateConfigValue('voice.rate', parseFloat(e.target.value));
-    });
-    this.elements.voicePitch?.addEventListener('input', (e) => {
-      const value = parseFloat(e.target.value);
-      this.elements.voicePitchValue.textContent = value.toFixed(1);
-    });
-    this.elements.voicePitch?.addEventListener('change', (e) => {
-      this.#updateConfigValue('voice.pitch', parseFloat(e.target.value));
-    });
-
-    // Audio settings
-    this.elements.audioHaptics?.addEventListener('change', (e) => {
-      this.#updateConfigValue('audio.haptics', e.target.checked);
-    });
-    this.elements.audioChimes?.addEventListener('change', (e) => {
-      this.#updateConfigValue('audio.chimes', e.target.checked);
-    });
-
-    // Display settings
-    this.elements.displayWakeLock?.addEventListener('change', (e) => {
-      this.#updateConfigValue('display.wakeLock', e.target.checked);
-    });
-    this.elements.displayAnimations?.addEventListener('change', (e) => {
-      this.#updateConfigValue('display.animations', e.target.checked);
-    });
-    this.elements.displayTheme?.addEventListener('change', (e) => {
-      this.#updateConfigValue('theme', e.target.value);
-    });
-  }
-
-  #handleKeydown(e) {
-    if (e.key === 'Escape' && this.#isOpen) {
-      e.preventDefault();
-      this.close();
-    }
-  }
-
-  async #loadConfig() {
-    try {
-      this.#config = await getConfig();
-      this.#populateForm();
-    } catch (err) {
-      console.error('[SettingsApp] Failed to load config:', err);
-      this.#config = { ...DEFAULT_CONFIG };
-      this.#populateForm();
-    }
-  }
-
-  #populateForm() {
-    if (!this.#config) return;
-
-    // Voice
-    this.elements.voiceCharacter.value = this.#config.voice?.character || 'her';
-    this.elements.voiceProvider.value = this.#config.voice?.provider || 'native';
-    this.elements.voiceRate.value = this.#config.voice?.rate || 1;
-    this.elements.voiceRateValue.textContent = `${(this.#config.voice?.rate || 1).toFixed(1)}×`;
-    this.elements.voicePitch.value = this.#config.voice?.pitch || 1;
-    this.elements.voicePitchValue.textContent = (this.#config.voice?.pitch || 1).toFixed(1);
-
-    // Audio
-    this.elements.audioHaptics.checked = this.#config.audio?.haptics ?? true;
-    this.elements.audioChimes.checked = this.#config.audio?.chimes ?? true;
-
-    // Display
-    this.elements.displayWakeLock.checked = this.#config.display?.wakeLock ?? true;
-    this.elements.displayAnimations.checked = this.#config.display?.animations ?? true;
-    this.elements.displayTheme.value = this.#config.theme || 'dark';
-
-    // System
-    this.elements.systemVersion.textContent = this.#config.version || '1.0.0';
-  }
-
-  async #updateConfigValue(path, value) {
-    // Build nested object from dot path
-    const parts = path.split('.');
-    const update = {};
-    let current = update;
-    
-    for (let i = 0; i < parts.length - 1; i++) {
-      current[parts[i]] = {};
-      current = current[parts[i]];
-    }
-    current[parts[parts.length - 1]] = value;
-
-    try {
-      this.#config = await updateConfig(update);
-      systemSounds.tap();
-      
-      this.dispatchEvent(new CustomEvent('config-change', {
-        bubbles: true,
-        detail: { path, value, config: this.#config }
-      }));
-      
-      console.log('[SettingsApp] Config updated:', path, '=', value);
-    } catch (err) {
-      console.error('[SettingsApp] Failed to update config:', err);
-    }
-  }
-
-  async #resetToDefaults() {
-    if (!confirm('Reset all settings to defaults?')) return;
-    
-    try {
-      this.#config = await updateConfig(DEFAULT_CONFIG);
-      this.#populateForm();
-      systemSounds.success();
-      
-      this.dispatchEvent(new CustomEvent('config-change', {
-        bubbles: true,
-        detail: { path: '*', value: DEFAULT_CONFIG, config: this.#config }
-      }));
-      
-      console.log('[SettingsApp] Config reset to defaults');
-    } catch (err) {
-      console.error('[SettingsApp] Failed to reset config:', err);
-    }
-  }
-
-  // Public API
-  open() {
-    systemSounds.open();
-    navigationService.present('settings');
-  }
-
-  close() {
-    systemSounds.close();
-    navigationService.dismiss();
-  }
-
-  toggle() {
-    this.#isOpen ? this.close() : this.open();
-  }
-
-  get isOpen() {
-    return this.#isOpen;
-  }
+    <//>
+  `;
 }
 
-customElements.define('settings-app', SettingsApp);
+export default createShadowComponent(SettingsApp, {
+  tag: 'settings-app',
+  styles,
+});

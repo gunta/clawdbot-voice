@@ -1,24 +1,39 @@
 /**
- * Components Index
- * Auto-registers all custom elements
+ * CLAWD OS1 Components
+ * Auto-registers all Preact shadow components as custom elements
  */
 
-export { OsHeader } from './os-header.js';
-export { VoiceCard } from './voice-card.js';
-export { WaveForm } from './wave-form.js';
-export { GpuWaveform } from './gpu-waveform.js';
-export { TranscriptionDisplay } from './transcription-display.js';
-export { SpeakButton } from './speak-button.js';
-export { StatusDisplay } from './status-display.js';
-export { AppFooter } from './app-footer.js';
-export { ClockModal } from './clock-modal.js';
-export { LaunchpadView } from './launchpad-view.js';
-export { FilesApp } from './files-app.js';
-export { TextEditor } from './text-editor.js';
-export { HandwriteText } from './handwrite-text.js';
-export { CommandsApp } from './commands-app.js';
-export { CoderApp } from './coder-app.js';
-export { DropZone } from './drop-zone.js';
-export { SettingsApp } from './settings-app.js';
-export { ImageViewerApp } from './image-viewer-app.js';
-export { AppHeader } from './app-header.js';
+// Core UI Components
+import './status-display.js';
+import './speak-button.js';
+import './wave-form.js';
+import './gpu-waveform.js';
+import './transcription-display.js';
+
+// Card Components
+import './voice-card.js';
+
+// App Components
+import './launchpad-view.js';
+import './settings-app.js';
+import './files-app.js';
+import './commands-app.js';
+import './coder-app.js';
+import './image-viewer-app.js';
+import './connections-app.js';
+
+// Modal & Overlay Components
+import './clock-modal.js';
+import './app-header.js';
+import './app-footer.js';
+
+// Main Shell
+import './clawd-os1.js';
+
+// Legacy components (if any still needed during transition)
+import './os-header.js';
+import './text-editor.js';
+import './drop-zone.js';
+import './handwrite-text.js';
+
+console.log('[CLAWD] All components registered');

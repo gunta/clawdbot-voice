@@ -1,72 +1,909 @@
 /**
  * Coder App Component
  * Monaco-powered code editor with Her aesthetic
- * Uses Monaco Editor from CDN for syntax highlighting and code editing
- * 
- * Now integrates with XState navigation service for window management
  */
-
-import { agentfs, systemSounds, navigationService } from '../services/index.js';
+import { html } from 'htm/preact';
+import { useSignal, useComputed, useSignalEffect } from '@preact/signals';
+import { useRef, useEffect } from 'preact/hooks';
+import { createShadowComponent } from '../lib/shadow-component.js';
+import { ErrorBoundary } from '../lib/error-boundary.js';
+import { navState, canGoBack, canGoForward, navigate } from '../services/navigation-signals.js';
+import { agentfs, systemSounds } from '../services/index.js';
 
 // Monaco CDN URL
 const MONACO_CDN = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1';
 
-export class CoderApp extends HTMLElement {
-  #editor = null;
-  #monaco = null;
-  #editorContainer = null;
-  #backBtn = null;
-  #closeBtn = null;
-  #saveBtn = null;
-  #titleElement = null;
-  #statusElement = null;
-  #languageElement = null;
-  #positionElement = null;
-  #boundHandleKeyDown = null;
-  #resizeObserver = null;
-  #unsubscribeNav = null;
-  
-  // State
-  #filePath = null;
-  #originalContent = '';
-  #isDirty = false;
-  #isSaving = false;
-  #isLoading = false;
+const styles = `
+/* Coder App - Monaco-powered Code Editor */
+/* Terracotta dark theme matching the Her aesthetic */
 
-  constructor() {
-    super();
-    this.attachShadow({ mode: 'open' });
-    this.shadowRoot.innerHTML = `
-      <style>
-        /* Critical inline styles to prevent FOUC */
-        :host {
-          position: fixed;
-          inset: 0;
-          opacity: 0;
-          visibility: hidden;
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-red, oklch(0.55 0.155 25));
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(20px);
+  transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+  dynamic-range-limit: no-limit;
+}
+
+:host([open]) {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid oklch(1 0 0 / 0.12);
+  flex-shrink: 0;
+  background: oklch(0 0 0 / 0.15);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+
+.header-left,
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 120px;
+}
+
+.header-left {
+  justify-content: flex-start;
+}
+
+.header-right {
+  justify-content: flex-end;
+}
+
+/* Back and Close buttons - elegant style */
+.back-btn,
+.forward-btn,
+.close-btn {
+  background: transparent;
+  border: 1px solid oklch(1 0 0 / 0.35);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.back-btn:hover,
+.forward-btn:hover,
+.close-btn:hover {
+  border-color: oklch(1 0 0 / 0.7);
+  background: oklch(1 0 0 / 0.1);
+  transform: scale(1.02);
+}
+
+.back-btn:active,
+.forward-btn:active,
+.close-btn:active {
+  transform: scale(0.96);
+  transition: transform 0.08s ease;
+}
+
+.back-btn:disabled,
+.forward-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.back-btn svg,
+.forward-btn svg,
+.close-btn svg {
+  width: 1rem;
+  height: 1rem;
+  stroke: oklch(1 0 0 / 0.6);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  transition: stroke 0.15s ease;
+}
+
+.back-btn:hover svg,
+.forward-btn:hover svg,
+.close-btn:hover svg {
+  stroke: oklch(1 0 0 / 0.95);
+}
+
+/* Title area */
+.title-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.title {
+  font-family: var(--font-body, 'Cormorant Garamond', serif);
+  font-size: 0.95rem;
+  font-style: italic;
+  font-weight: 400;
+  color: oklch(1 0 0 / 0.85);
+  letter-spacing: 0.06em;
+}
+
+.title.dirty::after {
+  content: ' •';
+  color: oklch(1 0 0 / 0.6);
+}
+
+.status {
+  font-family: var(--font-body, 'Cormorant Garamond', serif);
+  font-size: 0.7rem;
+  font-style: italic;
+  color: oklch(1 0 0 / 0.5);
+  letter-spacing: 0.06em;
+  min-height: 1em;
+}
+
+/* Save button - elegant pill style */
+.save-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid oklch(1 0 0 / 0.35);
+  background: transparent;
+  border-radius: var(--radius-lg, 30px);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--font-body, 'Cormorant Garamond', serif);
+  font-size: 0.8rem;
+  font-style: italic;
+  color: oklch(1 0 0 / 0.6);
+  letter-spacing: 0.08em;
+}
+
+.save-btn:hover {
+  border-color: oklch(1 0 0 / 0.7);
+  background: oklch(1 0 0 / 0.1);
+  color: oklch(1 0 0 / 0.95);
+  transform: scale(1.02);
+}
+
+.save-btn:active {
+  transform: scale(0.96);
+  transition: transform 0.08s ease;
+}
+
+.save-btn.dirty {
+  border-color: oklch(1 0 0 / 0.7);
+  color: oklch(1 0 0 / 0.95);
+}
+
+.save-btn svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  stroke: currentColor;
+  stroke-width: 1.25;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Editor Container */
+.editor-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #1A1210;
+  min-height: 0;
+}
+
+.editor-wrapper {
+  position: absolute;
+  inset: 0;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: #1A1210;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 10;
+}
+
+.loading-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid oklch(1 0 0 / 0.1);
+  border-top-color: oklch(1 0 0 / 0.5);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-family: var(--font-body, 'Cormorant Garamond', serif);
+  font-size: 0.85rem;
+  font-style: italic;
+  color: oklch(1 0 0 / 0.5);
+  letter-spacing: 0.06em;
+}
+
+/* Footer */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  border-top: 1px solid oklch(1 0 0 / 0.12);
+  flex-shrink: 0;
+  background: oklch(0 0 0 / 0.15);
+}
+
+.language-info,
+.cursor-position {
+  font-family: var(--font-body, 'Cormorant Garamond', serif);
+  font-size: 0.7rem;
+  font-style: italic;
+  color: oklch(1 0 0 / 0.4);
+  letter-spacing: 0.06em;
+}
+
+.language-info {
+  padding: 0.25rem 0.6rem;
+  background: oklch(1 0 0 / 0.06);
+  border-radius: 4px;
+}
+
+/* Monaco Editor Overrides */
+.editor-wrapper :global(.monaco-editor) {
+  --vscode-editor-background: #1A1210;
+}
+
+.editor-wrapper :global(.monaco-editor .margin) {
+  background: #1A1210;
+}
+
+.editor-wrapper :global(.monaco-editor .monaco-scrollable-element > .scrollbar) {
+  background: transparent;
+}
+
+/* HDR Enhancement */
+@media (dynamic-range: high) {
+  .back-btn:hover,
+  .forward-btn:hover,
+  .close-btn:hover,
+  .save-btn:hover {
+    border-color: var(--hdr-white-bright, oklch(1.15 0 0));
+  }
+
+  .title {
+    color: var(--hdr-white-bright, oklch(1.15 0 0));
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 600px) {
+  .header {
+    padding: 1rem;
+  }
+
+  .save-btn span {
+    display: none;
+  }
+
+  .save-btn {
+    padding: 0.5rem;
+    border-radius: 50%;
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .footer {
+    padding: 0.6rem 1rem;
+  }
+
+  .language-info,
+  .cursor-position {
+    font-size: 0.65rem;
+  }
+}
+
+/* Safe area insets for iOS */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .footer {
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  }
+}
+`;
+
+/**
+ * Load Monaco Editor from CDN
+ */
+async function loadMonaco() {
+  if (window.__MONACO_INSTANCE__) return window.__MONACO_INSTANCE__;
+
+  // Configure Monaco AMD loader
+  if (!window.require) {
+    await new Promise((resolve, reject) => {
+      const loaderScript = document.createElement('script');
+      loaderScript.src = `${MONACO_CDN}/min/vs/loader.js`;
+      loaderScript.onload = resolve;
+      loaderScript.onerror = reject;
+      document.head.appendChild(loaderScript);
+    });
+  }
+
+  // Configure require paths
+  window.require.config({
+    paths: { vs: `${MONACO_CDN}/min/vs` }
+  });
+
+  // Load Monaco
+  return new Promise((resolve, reject) => {
+    window.require(['vs/editor/editor.main'], () => {
+      window.__MONACO_INSTANCE__ = window.monaco;
+      defineCustomTheme();
+      resolve(window.monaco);
+    }, reject);
+  });
+}
+
+/**
+ * Define custom theme matching Her aesthetic
+ */
+function defineCustomTheme() {
+  if (!window.monaco) return;
+
+  window.monaco.editor.defineTheme('clawd-dark', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'comment', foreground: '6A6A6A', fontStyle: 'italic' },
+      { token: 'keyword', foreground: 'E8A87C' },
+      { token: 'string', foreground: 'C9B1FF' },
+      { token: 'number', foreground: 'FFD580' },
+      { token: 'type', foreground: 'E8A87C' },
+      { token: 'function', foreground: 'F0D9B5' },
+      { token: 'variable', foreground: 'E0E0E0' },
+      { token: 'constant', foreground: 'FFD580' },
+      { token: 'operator', foreground: 'B0B0B0' },
+    ],
+    colors: {
+      'editor.background': '#1A1210',
+      'editor.foreground': '#E8E0DC',
+      'editor.lineHighlightBackground': '#2A1F1C',
+      'editor.selectionBackground': '#4A3530',
+      'editor.inactiveSelectionBackground': '#3A2520',
+      'editorCursor.foreground': '#E8A87C',
+      'editorLineNumber.foreground': '#5A4A45',
+      'editorLineNumber.activeForeground': '#A08A80',
+      'editor.selectionHighlightBackground': '#3A2A25',
+      'editorIndentGuide.background': '#2A201C',
+      'editorIndentGuide.activeBackground': '#4A3A35',
+      'scrollbarSlider.background': '#3A2A2580',
+      'scrollbarSlider.hoverBackground': '#4A3A3580',
+      'scrollbarSlider.activeBackground': '#5A4A4580',
+      'editorWidget.background': '#1A1210',
+      'editorWidget.border': '#3A2A25',
+      'input.background': '#1A1210',
+      'input.border': '#3A2A25',
+      'input.foreground': '#E8E0DC',
+      'dropdown.background': '#1A1210',
+      'dropdown.border': '#3A2A25',
+      'list.hoverBackground': '#2A1F1C',
+      'list.activeSelectionBackground': '#4A3530',
+      'minimap.background': '#1A1210',
+    }
+  });
+}
+
+/**
+ * Inject Monaco CSS into shadow DOM
+ */
+async function injectMonacoStyles(shadowRoot) {
+  const styleLink = document.createElement('link');
+  styleLink.rel = 'stylesheet';
+  styleLink.href = `${MONACO_CDN}/min/vs/editor/editor.main.css`;
+  shadowRoot.appendChild(styleLink);
+
+  await new Promise((resolve) => {
+    styleLink.onload = resolve;
+    styleLink.onerror = resolve;
+  });
+
+  // Copy any inline Monaco styles
+  const monacoStyles = document.querySelectorAll('style[data-name^="vs/"], link[href*="monaco"]');
+  monacoStyles.forEach(style => {
+    const clone = style.cloneNode(true);
+    shadowRoot.appendChild(clone);
+  });
+}
+
+/**
+ * Get Monaco language from file path
+ */
+function getLanguageFromPath(path) {
+  const ext = path?.split('.').pop()?.toLowerCase();
+
+  const languageMap = {
+    'js': 'javascript',
+    'mjs': 'javascript',
+    'cjs': 'javascript',
+    'jsx': 'javascript',
+    'ts': 'typescript',
+    'tsx': 'typescript',
+    'json': 'json',
+    'html': 'html',
+    'htm': 'html',
+    'css': 'css',
+    'scss': 'scss',
+    'sass': 'scss',
+    'less': 'less',
+    'md': 'markdown',
+    'markdown': 'markdown',
+    'py': 'python',
+    'yaml': 'yaml',
+    'yml': 'yaml',
+    'toml': 'ini',
+    'xml': 'xml',
+    'svg': 'xml',
+    'sh': 'shell',
+    'bash': 'shell',
+    'zsh': 'shell',
+    'sql': 'sql',
+    'graphql': 'graphql',
+    'gql': 'graphql',
+    'rs': 'rust',
+    'go': 'go',
+    'java': 'java',
+    'c': 'c',
+    'h': 'c',
+    'cpp': 'cpp',
+    'hpp': 'cpp',
+    'cc': 'cpp',
+    'rb': 'ruby',
+    'txt': 'plaintext',
+  };
+
+  return languageMap[ext] || 'plaintext';
+}
+
+/**
+ * Get display name for language
+ */
+function getLanguageDisplayName(language) {
+  const displayNames = {
+    'javascript': 'JavaScript',
+    'typescript': 'TypeScript',
+    'json': 'JSON',
+    'html': 'HTML',
+    'css': 'CSS',
+    'scss': 'SCSS',
+    'less': 'Less',
+    'markdown': 'Markdown',
+    'python': 'Python',
+    'yaml': 'YAML',
+    'xml': 'XML',
+    'shell': 'Shell',
+    'sql': 'SQL',
+    'graphql': 'GraphQL',
+    'rust': 'Rust',
+    'go': 'Go',
+    'java': 'Java',
+    'cpp': 'C++',
+    'c': 'C',
+    'ruby': 'Ruby',
+    'plaintext': 'Plain Text',
+  };
+
+  return displayNames[language] || language;
+}
+
+function CoderApp({ host }) {
+  // Refs
+  const editorContainerRef = useRef(null);
+  const editorWrapperRef = useRef(null);
+  const editorRef = useRef(null);
+  const monacoRef = useRef(null);
+  const resizeObserverRef = useRef(null);
+
+  // State signals
+  const isOpen = useSignal(false);
+  const filePath = useSignal(null);
+  const fileName = useSignal('Untitled');
+  const originalContent = useSignal('');
+  const isDirty = useSignal(false);
+  const isSaving = useSignal(false);
+  const isLoading = useSignal(false);
+  const statusMessage = useSignal('');
+  const language = useSignal('plaintext');
+  const cursorPosition = useSignal('Ln 1, Col 1');
+
+  // Computed values
+  const languageDisplayName = useComputed(() => getLanguageDisplayName(language.value));
+  // canGoBack and canGoForward are imported from navigation-signals.js
+
+  // Expose methods to host element
+  host.open = async (path) => {
+    systemSounds.open();
+    const name = path ? path.split('/').pop() : 'Untitled';
+    // Use navigation signals
+    navigate.push('coder', name, { path });
+  };
+
+  host.close = () => {
+    systemSounds.close();
+    navigate.close();
+  };
+
+  host.save = () => saveFile();
+  host.back = () => {
+    systemSounds.back();
+    navigate.back();
+  };
+
+  // Initialize Monaco editor
+  useEffect(() => {
+    let mounted = true;
+
+    const initMonaco = async () => {
+      if (!editorWrapperRef.current) return;
+
+      try {
+        isLoading.value = true;
+
+        // Load Monaco and inject styles
+        monacoRef.current = await loadMonaco();
+        await injectMonacoStyles(host.shadowRoot);
+
+        if (!mounted || !editorWrapperRef.current) return;
+
+        // Create editor instance
+        editorRef.current = monacoRef.current.editor.create(editorWrapperRef.current, {
+          value: '',
+          language: 'plaintext',
+          theme: 'clawd-dark',
+          automaticLayout: false,
+          fontSize: 14,
+          fontFamily: "'SF Mono', 'Fira Code', 'JetBrains Mono', 'Menlo', 'Monaco', 'Consolas', monospace",
+          lineHeight: 22,
+          padding: { top: 16, bottom: 16 },
+          minimap: { enabled: true, scale: 1 },
+          scrollBeyondLastLine: false,
+          renderLineHighlight: 'line',
+          cursorBlinking: 'smooth',
+          cursorSmoothCaretAnimation: 'on',
+          smoothScrolling: true,
+          wordWrap: 'on',
+          tabSize: 2,
+          insertSpaces: true,
+          folding: true,
+          lineNumbers: 'on',
+          glyphMargin: false,
+          renderWhitespace: 'selection',
+          bracketPairColorization: { enabled: true },
+          guides: {
+            bracketPairs: true,
+            indentation: true,
+          },
+          scrollbar: {
+            verticalScrollbarSize: 8,
+            horizontalScrollbarSize: 8,
+          },
+        });
+
+        // Listen for content changes
+        editorRef.current.onDidChangeModelContent(() => {
+          if (!editorRef.current) return;
+          const currentContent = editorRef.current.getValue();
+          isDirty.value = currentContent !== originalContent.value;
+        });
+
+        // Listen for cursor position changes
+        editorRef.current.onDidChangeCursorPosition((e) => {
+          cursorPosition.value = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
+        });
+
+        // Set up ResizeObserver
+        resizeObserverRef.current = new ResizeObserver((entries) => {
+          for (const entry of entries) {
+            if (editorRef.current) {
+              const { width, height } = entry.contentRect;
+              if (width > 0 && height > 0) {
+                editorRef.current.layout({ width, height });
+              }
+            }
+          }
+        });
+        resizeObserverRef.current.observe(editorContainerRef.current);
+
+        isLoading.value = false;
+      } catch (err) {
+        console.error('[CoderApp] Failed to initialize Monaco:', err);
+        statusMessage.value = 'Failed to load editor';
+        isLoading.value = false;
+      }
+    };
+
+    initMonaco();
+
+    return () => {
+      mounted = false;
+      resizeObserverRef.current?.disconnect();
+      editorRef.current?.dispose();
+    };
+  }, []);
+
+  // Watch for navigation state changes
+  useSignalEffect(() => {
+    const state = navState.value;
+    if (!state) return;
+
+    const { current } = state.context || {};
+    const isCoderActive = current?.id === 'coder';
+
+    if (isCoderActive && !isOpen.value) {
+      const path = current.state?.path;
+      openFile(path);
+    } else if (!isCoderActive && isOpen.value) {
+      closeEditor();
+    }
+  });
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!isOpen.value) return;
+
+      // Escape to close
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        host.close();
+        return;
+      }
+
+      // Cmd/Ctrl+S to save
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        saveFile();
+        return;
+      }
+
+      // Cmd/Ctrl+W to close
+      if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
+        e.preventDefault();
+        host.close();
+        return;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Open file
+  const openFile = async (path) => {
+    filePath.value = path || null;
+    fileName.value = path ? path.split('/').pop() : 'Untitled';
+    isOpen.value = true;
+    isLoading.value = true;
+
+    // Update language
+    language.value = getLanguageFromPath(path);
+
+    // Wait for visibility
+    await waitForVisibility();
+
+    try {
+      if (!editorRef.current) {
+        throw new Error('Editor not initialized');
+      }
+
+      // Layout editor
+      if (editorContainerRef.current) {
+        const rect = editorContainerRef.current.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          editorRef.current.layout({ width: rect.width, height: rect.height });
         }
-      </style>
-      <link rel="stylesheet" href="src/components/styles/coder-app.css">
-      
+      }
+
+      // Load file content
+      if (path) {
+        try {
+          const content = await agentfs.readFile(path, 'utf-8');
+          originalContent.value = content || '';
+          editorRef.current.setValue(originalContent.value);
+          isDirty.value = false;
+        } catch (err) {
+          console.error('[CoderApp] Failed to load file:', err);
+          originalContent.value = '';
+          editorRef.current.setValue('');
+          statusMessage.value = 'Failed to load';
+        }
+      } else {
+        originalContent.value = '';
+        editorRef.current.setValue('');
+        isDirty.value = false;
+      }
+
+      // Set language
+      const model = editorRef.current.getModel();
+      if (model && monacoRef.current) {
+        monacoRef.current.editor.setModelLanguage(model, language.value);
+      }
+
+      editorRef.current.focus();
+      isLoading.value = false;
+
+      host.dispatchEvent(new CustomEvent('coder-open', {
+        bubbles: true,
+        detail: { path }
+      }));
+    } catch (err) {
+      console.error('[CoderApp] Failed to open:', err);
+      statusMessage.value = 'Failed to load';
+      isLoading.value = false;
+    }
+  };
+
+  // Close editor
+  const closeEditor = () => {
+    isOpen.value = false;
+    filePath.value = null;
+    fileName.value = 'Untitled';
+    originalContent.value = '';
+    isDirty.value = false;
+    statusMessage.value = '';
+
+    if (editorRef.current) {
+      editorRef.current.setValue('');
+    }
+
+    host.dispatchEvent(new CustomEvent('coder-close', { bubbles: true }));
+  };
+
+  // Save file
+  const saveFile = async () => {
+    if (!filePath.value || isSaving.value || !editorRef.current) return;
+
+    isSaving.value = true;
+    statusMessage.value = 'Saving...';
+
+    try {
+      const content = editorRef.current.getValue();
+      await agentfs.writeFile(filePath.value, content);
+
+      originalContent.value = content;
+      isDirty.value = false;
+
+      systemSounds.success();
+      statusMessage.value = 'Saved';
+      setTimeout(() => { statusMessage.value = ''; }, 2000);
+
+      host.dispatchEvent(new CustomEvent('coder-save', {
+        bubbles: true,
+        detail: { path: filePath.value }
+      }));
+    } catch (err) {
+      console.error('[CoderApp] Save failed:', err);
+      statusMessage.value = 'Save failed';
+      systemSounds.error();
+    } finally {
+      isSaving.value = false;
+    }
+  };
+
+  // Wait for visibility
+  const waitForVisibility = () => {
+    return new Promise((resolve) => {
+      const checkVisibility = () => {
+        if (!editorContainerRef.current) {
+          requestAnimationFrame(checkVisibility);
+          return;
+        }
+
+        const rect = editorContainerRef.current.getBoundingClientRect();
+        if (rect && rect.width > 0 && rect.height > 0) {
+          resolve();
+        } else {
+          requestAnimationFrame(checkVisibility);
+        }
+      };
+      requestAnimationFrame(checkVisibility);
+    });
+  };
+
+  // Handlers
+  const handleBack = () => host.back();
+  const handleForward = () => {
+    navigate.forward();
+  };
+  const handleClose = () => host.close();
+  const handleSave = () => saveFile();
+
+  // Update host attribute
+  useEffect(() => {
+    if (isOpen.value) {
+      host.setAttribute('open', '');
+      if (isDirty.value) {
+        host.setAttribute('dirty', '');
+      } else {
+        host.removeAttribute('dirty');
+      }
+    } else {
+      host.removeAttribute('open');
+      host.removeAttribute('dirty');
+    }
+  }, [isOpen.value, isDirty.value]);
+
+  return html`
+    <${ErrorBoundary} name="CoderApp">
       <div class="header">
         <div class="header-left">
-          <button class="back-btn" type="button" aria-label="Go back">
+          <button
+            class="back-btn"
+            type="button"
+            aria-label="Go back"
+            onClick=${handleBack}
+            disabled=${!canGoBack.value}
+            style=${{ display: canGoBack.value ? '' : 'none' }}
+          >
             <svg viewBox="0 0 24 24" fill="none">
               <path d="M15 18L9 12L15 6" />
             </svg>
           </button>
-          <button class="forward-btn" type="button" aria-label="Go forward" disabled>
+          <button
+            class="forward-btn"
+            type="button"
+            aria-label="Go forward"
+            onClick=${handleForward}
+            disabled=${!canGoForward.value}
+            style=${{ display: canGoForward.value ? '' : 'none' }}
+          >
             <svg viewBox="0 0 24 24" fill="none">
               <path d="M9 18L15 12L9 6" />
             </svg>
           </button>
         </div>
         <div class="title-area">
-          <span class="title">Untitled</span>
-          <span class="status"></span>
+          <span class=${`title ${isDirty.value ? 'dirty' : ''}`}>
+            ${fileName.value}
+          </span>
+          <span class="status">${statusMessage.value}</span>
         </div>
         <div class="header-right">
-          <button class="save-btn" type="button" aria-label="Save file">
+          <button
+            class=${`save-btn ${isDirty.value ? 'dirty' : ''}`}
+            type="button"
+            aria-label="Save file"
+            onClick=${handleSave}
+          >
             <svg viewBox="0 0 24 24" fill="none">
               <path d="M19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16L21 8V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21Z" />
               <polyline points="17 21 17 13 7 13 7 21" />
@@ -74,7 +911,12 @@ export class CoderApp extends HTMLElement {
             </svg>
             <span>Save</span>
           </button>
-          <button class="close-btn" type="button" aria-label="Close editor">
+          <button
+            class="close-btn"
+            type="button"
+            aria-label="Close editor"
+            onClick=${handleClose}
+          >
             <svg viewBox="0 0 24 24" fill="none">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
@@ -82,646 +924,24 @@ export class CoderApp extends HTMLElement {
           </button>
         </div>
       </div>
-      
-      <div class="editor-container">
-        <div class="editor-wrapper"></div>
-        <div class="loading-overlay">
+
+      <div class="editor-container" ref=${editorContainerRef}>
+        <div class="editor-wrapper" ref=${editorWrapperRef}></div>
+        <div class=${`loading-overlay ${isLoading.value ? 'visible' : ''}`}>
           <div class="loading-spinner"></div>
           <span class="loading-text">Loading editor...</span>
         </div>
       </div>
-      
+
       <div class="footer">
-        <span class="language-info">Plain Text</span>
-        <span class="cursor-position">Ln 1, Col 1</span>
+        <span class="language-info">${languageDisplayName.value}</span>
+        <span class="cursor-position">${cursorPosition.value}</span>
       </div>
-    `;
-  }
-
-  connectedCallback() {
-    this.#editorContainer = this.shadowRoot.querySelector('.editor-wrapper');
-    this.#backBtn = this.shadowRoot.querySelector('.back-btn');
-    this.#closeBtn = this.shadowRoot.querySelector('.close-btn');
-    this.#saveBtn = this.shadowRoot.querySelector('.save-btn');
-    this.#titleElement = this.shadowRoot.querySelector('.title');
-    this.#statusElement = this.shadowRoot.querySelector('.status');
-    this.#languageElement = this.shadowRoot.querySelector('.language-info');
-    this.#positionElement = this.shadowRoot.querySelector('.cursor-position');
-    
-    // Forward button
-    const forwardBtn = this.shadowRoot.querySelector('.forward-btn');
-    
-    // Event handlers - navigation buttons use navigation service
-    this.#backBtn?.addEventListener('click', () => this.back());
-    forwardBtn?.addEventListener('click', () => navigationService.forward());
-    this.#closeBtn?.addEventListener('click', () => this.close());
-    this.#saveBtn?.addEventListener('click', () => this.save());
-    
-    // Hide navigation buttons initially (subscription will show if needed)
-    if (this.#backBtn) {
-      this.#backBtn.style.display = 'none';
-    }
-    if (forwardBtn) {
-      forwardBtn.style.display = 'none';
-    }
-    
-    // Keyboard
-    this.#boundHandleKeyDown = this.#handleKeyDown.bind(this);
-    
-    // Subscribe to navigation state changes
-    this.#subscribeToNavigation();
-  }
-
-  disconnectedCallback() {
-    document.removeEventListener('keydown', this.#boundHandleKeyDown);
-    this.#resizeObserver?.disconnect();
-    this.#editor?.dispose();
-    if (this.#unsubscribeNav) {
-      this.#unsubscribeNav();
-      this.#unsubscribeNav = null;
-    }
-  }
-
-  /**
-   * Subscribe to navigation service state changes
-   */
-  #subscribeToNavigation() {
-    this.#unsubscribeNav = navigationService.subscribe((snapshot) => {
-      const { current, backStack, forwardStack } = snapshot.context;
-      const isCoderActive = current?.id === 'coder';
-      
-      // Hide/show forward button based on availability
-      const forwardBtn = this.shadowRoot.querySelector('.forward-btn');
-      if (forwardBtn) {
-        forwardBtn.style.display = forwardStack.length === 0 ? 'none' : '';
-      }
-      
-      // Hide/show back button based on availability
-      if (this.#backBtn) {
-        this.#backBtn.style.display = backStack.length === 0 ? 'none' : '';
-      }
-      
-      if (isCoderActive && !this.hasAttribute('open')) {
-        // Coder was pushed - show the app
-        const path = current.state?.path;
-        this.#openWithPath(path);
-      } else if (!isCoderActive && this.hasAttribute('open')) {
-        // Coder is no longer active - hide the app
-        this.#hideApp();
-      }
-    });
-  }
-
-  /**
-   * Internal open with file path (called by navigation subscription)
-   */
-  async #openWithPath(path) {
-    this.#filePath = path || null;
-    this.setAttribute('open', '');
-    document.addEventListener('keydown', this.#boundHandleKeyDown);
-    
-    // Show loading
-    this.#showLoading(true);
-    
-    // Update title
-    const fileName = path ? path.split('/').pop() : 'Untitled';
-    this.#titleElement.textContent = fileName;
-    
-    // Detect language from extension
-    const language = path ? this.#getLanguageFromPath(path) : 'plaintext';
-    this.#updateLanguageInfo(language);
-    
-    // Wait for element to be visible before initializing Monaco
-    await this.#waitForVisibility();
-    
-    try {
-      const editor = await this.#getEditor();
-      
-      const editorContainer = this.shadowRoot.querySelector('.editor-container');
-      const rect = editorContainer.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        editor.layout({ width: rect.width, height: rect.height });
-      }
-      
-      if (path) {
-        await this.#loadFile();
-      }
-      
-      const model = editor.getModel();
-      if (model && this.#monaco) {
-        this.#monaco.editor.setModelLanguage(model, language);
-      }
-      
-      editor.focus();
-      this.#showLoading(false);
-    } catch (err) {
-      console.error('[CoderApp] Failed to open:', err);
-      this.#setStatus('Failed to load');
-      this.#showLoading(false);
-    }
-    
-    this.dispatchEvent(new CustomEvent('coder-open', { 
-      bubbles: true, 
-      detail: { path } 
-    }));
-  }
-
-  /**
-   * Hide the coder app (internal - called by navigation subscription)
-   */
-  #hideApp() {
-    this.removeAttribute('open');
-    document.removeEventListener('keydown', this.#boundHandleKeyDown);
-    
-    // Reset state
-    this.#filePath = null;
-    this.#originalContent = '';
-    this.#isDirty = false;
-    
-    if (this.#editor) {
-      this.#editor.setValue('');
-    }
-    
-    this.dispatchEvent(new CustomEvent('coder-close', { bubbles: true }));
-  }
-
-  /**
-   * Load Monaco Editor from CDN
-   */
-  async #loadMonaco() {
-    if (this.#monaco) return this.#monaco;
-    
-    // Configure Monaco AMD loader
-    if (!window.require) {
-      await new Promise((resolve, reject) => {
-        const loaderScript = document.createElement('script');
-        loaderScript.src = `${MONACO_CDN}/min/vs/loader.js`;
-        loaderScript.onload = resolve;
-        loaderScript.onerror = reject;
-        document.head.appendChild(loaderScript);
-      });
-    }
-    
-    // Configure require paths
-    window.require.config({
-      paths: { vs: `${MONACO_CDN}/min/vs` }
-    });
-    
-    // Load Monaco
-    return new Promise((resolve, reject) => {
-      window.require(['vs/editor/editor.main'], () => {
-        this.#monaco = window.monaco;
-        this.#defineCustomTheme();
-        resolve(this.#monaco);
-      }, reject);
-    });
-  }
-
-  /**
-   * Define custom theme matching Her aesthetic
-   */
-  #defineCustomTheme() {
-    if (!this.#monaco) return;
-    
-    this.#monaco.editor.defineTheme('clawd-dark', {
-      base: 'vs-dark',
-      inherit: true,
-      rules: [
-        { token: 'comment', foreground: '6A6A6A', fontStyle: 'italic' },
-        { token: 'keyword', foreground: 'E8A87C' },
-        { token: 'string', foreground: 'C9B1FF' },
-        { token: 'number', foreground: 'FFD580' },
-        { token: 'type', foreground: 'E8A87C' },
-        { token: 'function', foreground: 'F0D9B5' },
-        { token: 'variable', foreground: 'E0E0E0' },
-        { token: 'constant', foreground: 'FFD580' },
-        { token: 'operator', foreground: 'B0B0B0' },
-      ],
-      colors: {
-        'editor.background': '#1A1210',
-        'editor.foreground': '#E8E0DC',
-        'editor.lineHighlightBackground': '#2A1F1C',
-        'editor.selectionBackground': '#4A3530',
-        'editor.inactiveSelectionBackground': '#3A2520',
-        'editorCursor.foreground': '#E8A87C',
-        'editorLineNumber.foreground': '#5A4A45',
-        'editorLineNumber.activeForeground': '#A08A80',
-        'editor.selectionHighlightBackground': '#3A2A25',
-        'editorIndentGuide.background': '#2A201C',
-        'editorIndentGuide.activeBackground': '#4A3A35',
-        'scrollbarSlider.background': '#3A2A2580',
-        'scrollbarSlider.hoverBackground': '#4A3A3580',
-        'scrollbarSlider.activeBackground': '#5A4A4580',
-        'editorWidget.background': '#1A1210',
-        'editorWidget.border': '#3A2A25',
-        'input.background': '#1A1210',
-        'input.border': '#3A2A25',
-        'input.foreground': '#E8E0DC',
-        'dropdown.background': '#1A1210',
-        'dropdown.border': '#3A2A25',
-        'list.hoverBackground': '#2A1F1C',
-        'list.activeSelectionBackground': '#4A3530',
-        'minimap.background': '#1A1210',
-      }
-    });
-  }
-
-  /**
-   * Create or get Monaco editor instance
-   */
-  async #getEditor() {
-    if (this.#editor) return this.#editor;
-    
-    await this.#loadMonaco();
-    
-    // Get the parent container for dimensions (editor-container, not editor-wrapper)
-    const editorContainer = this.shadowRoot.querySelector('.editor-container');
-    
-    // Monaco needs its CSS to work - copy styles into shadow DOM
-    await this.#injectMonacoStyles();
-    
-    this.#editor = this.#monaco.editor.create(this.#editorContainer, {
-      value: '',
-      language: 'plaintext',
-      theme: 'clawd-dark',
-      automaticLayout: false, // We'll handle layout manually for Shadow DOM
-      fontSize: 14,
-      fontFamily: "'SF Mono', 'Fira Code', 'JetBrains Mono', 'Menlo', 'Monaco', 'Consolas', monospace",
-      lineHeight: 22,
-      padding: { top: 16, bottom: 16 },
-      minimap: { enabled: true, scale: 1 },
-      scrollBeyondLastLine: false,
-      renderLineHighlight: 'line',
-      cursorBlinking: 'smooth',
-      cursorSmoothCaretAnimation: 'on',
-      smoothScrolling: true,
-      wordWrap: 'on',
-      tabSize: 2,
-      insertSpaces: true,
-      folding: true,
-      lineNumbers: 'on',
-      glyphMargin: false,
-      renderWhitespace: 'selection',
-      bracketPairColorization: { enabled: true },
-      guides: {
-        bracketPairs: true,
-        indentation: true,
-      },
-      scrollbar: {
-        verticalScrollbarSize: 8,
-        horizontalScrollbarSize: 8,
-      },
-    });
-    
-    // Listen for content changes
-    this.#editor.onDidChangeModelContent(() => {
-      this.#handleContentChange();
-    });
-    
-    // Listen for cursor position changes
-    this.#editor.onDidChangeCursorPosition((e) => {
-      this.#updateCursorPosition(e.position);
-    });
-    
-    // Set up ResizeObserver on the parent container for proper Shadow DOM support
-    this.#resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        if (this.#editor) {
-          const { width, height } = entry.contentRect;
-          // Only layout if we have valid dimensions
-          if (width > 0 && height > 0) {
-            this.#editor.layout({ width, height });
-          }
-        }
-      }
-    });
-    this.#resizeObserver.observe(editorContainer);
-    
-    return this.#editor;
-  }
-
-  /**
-   * Open a file in the editor (public API - uses navigation service)
-   * @param {string} [path] - File path (optional)
-   */
-  async open(path) {
-    systemSounds.open();
-    const fileName = path ? path.split('/').pop() : 'Untitled';
-    navigationService.push('coder', fileName, { path });
-  }
-  
-  /**
-   * Inject Monaco CSS into shadow DOM
-   * Monaco injects styles into document.head, but we need them in shadow DOM
-   */
-  async #injectMonacoStyles() {
-    // Find Monaco styles in document head
-    const monacoStyles = document.querySelectorAll('style[data-name^="vs/"], link[href*="monaco"]');
-    
-    // Also inject from CDN directly
-    const styleLink = document.createElement('link');
-    styleLink.rel = 'stylesheet';
-    styleLink.href = `${MONACO_CDN}/min/vs/editor/editor.main.css`;
-    this.shadowRoot.appendChild(styleLink);
-    
-    // Wait for stylesheet to load
-    await new Promise((resolve) => {
-      styleLink.onload = resolve;
-      styleLink.onerror = resolve; // Continue even if it fails
-    });
-    
-    // Copy any inline Monaco styles
-    monacoStyles.forEach(style => {
-      const clone = style.cloneNode(true);
-      this.shadowRoot.appendChild(clone);
-    });
-  }
-
-  /**
-   * Wait for the component to be visible with proper dimensions
-   */
-  #waitForVisibility() {
-    return new Promise((resolve) => {
-      const checkVisibility = () => {
-        const container = this.shadowRoot.querySelector('.editor-container');
-        const rect = container?.getBoundingClientRect();
-        if (rect && rect.width > 0 && rect.height > 0) {
-          resolve();
-        } else {
-          requestAnimationFrame(checkVisibility);
-        }
-      };
-      // Start checking on next frame after 'open' attribute is set
-      requestAnimationFrame(checkVisibility);
-    });
-  }
-
-  /**
-   * Close the editor (public API - uses navigation service)
-   */
-  close() {
-    systemSounds.close();
-    navigationService.close();
-  }
-
-  /**
-   * Go back in navigation history (public API - uses navigation service)
-   */
-  back() {
-    systemSounds.back();
-    navigationService.back();
-  }
-
-  /**
-   * Save the file
-   */
-  async save() {
-    if (!this.#filePath || this.#isSaving || !this.#editor) return;
-    
-    this.#isSaving = true;
-    this.#setStatus('Saving...');
-    
-    try {
-      const content = this.#editor.getValue();
-      await agentfs.writeFile(this.#filePath, content);
-      
-      this.#originalContent = content;
-      this.#isDirty = false;
-      this.#updateDirtyState();
-      
-      // Play save sound
-      systemSounds.success();
-      
-      this.#setStatus('Saved');
-      setTimeout(() => this.#setStatus(''), 2000);
-      
-      this.dispatchEvent(new CustomEvent('coder-save', { 
-        bubbles: true, 
-        detail: { path: this.#filePath } 
-      }));
-    } catch (err) {
-      console.error('[CoderApp] Save failed:', err);
-      this.#setStatus('Save failed');
-      systemSounds.error();
-    } finally {
-      this.#isSaving = false;
-    }
-  }
-
-  /**
-   * Load file content
-   */
-  async #loadFile() {
-    if (!this.#filePath || !this.#editor) return;
-    
-    this.#setStatus('Loading...');
-    
-    try {
-      const content = await agentfs.readFile(this.#filePath, 'utf-8');
-      this.#originalContent = content || '';
-      this.#editor.setValue(this.#originalContent);
-      this.#isDirty = false;
-      this.#updateDirtyState();
-      this.#setStatus('');
-    } catch (err) {
-      console.error('[CoderApp] Load failed:', err);
-      this.#editor.setValue('');
-      this.#setStatus('Failed to load');
-    }
-  }
-
-  /**
-   * Handle content change
-   */
-  #handleContentChange() {
-    if (!this.#editor) return;
-    
-    const currentContent = this.#editor.getValue();
-    const wasDirty = this.#isDirty;
-    this.#isDirty = currentContent !== this.#originalContent;
-    
-    if (wasDirty !== this.#isDirty) {
-      this.#updateDirtyState();
-    }
-  }
-
-  /**
-   * Update dirty (unsaved) state UI
-   */
-  #updateDirtyState() {
-    if (this.#isDirty) {
-      this.setAttribute('dirty', '');
-      this.#titleElement.classList.add('dirty');
-    } else {
-      this.removeAttribute('dirty');
-      this.#titleElement.classList.remove('dirty');
-    }
-  }
-
-  /**
-   * Update cursor position display
-   */
-  #updateCursorPosition(position) {
-    if (!this.#positionElement || !position) return;
-    this.#positionElement.textContent = `Ln ${position.lineNumber}, Col ${position.column}`;
-  }
-
-  /**
-   * Update language info display
-   */
-  #updateLanguageInfo(language) {
-    if (!this.#languageElement) return;
-    
-    const displayNames = {
-      'javascript': 'JavaScript',
-      'typescript': 'TypeScript',
-      'json': 'JSON',
-      'html': 'HTML',
-      'css': 'CSS',
-      'scss': 'SCSS',
-      'less': 'Less',
-      'markdown': 'Markdown',
-      'python': 'Python',
-      'yaml': 'YAML',
-      'xml': 'XML',
-      'shell': 'Shell',
-      'sql': 'SQL',
-      'graphql': 'GraphQL',
-      'rust': 'Rust',
-      'go': 'Go',
-      'java': 'Java',
-      'cpp': 'C++',
-      'c': 'C',
-      'ruby': 'Ruby',
-      'plaintext': 'Plain Text',
-    };
-    
-    this.#languageElement.textContent = displayNames[language] || language;
-  }
-
-  /**
-   * Get Monaco language from file path
-   */
-  #getLanguageFromPath(path) {
-    const ext = path.split('.').pop()?.toLowerCase();
-    
-    const languageMap = {
-      'js': 'javascript',
-      'mjs': 'javascript',
-      'cjs': 'javascript',
-      'jsx': 'javascript',
-      'ts': 'typescript',
-      'tsx': 'typescript',
-      'json': 'json',
-      'html': 'html',
-      'htm': 'html',
-      'css': 'css',
-      'scss': 'scss',
-      'sass': 'scss',
-      'less': 'less',
-      'md': 'markdown',
-      'markdown': 'markdown',
-      'py': 'python',
-      'yaml': 'yaml',
-      'yml': 'yaml',
-      'toml': 'ini',
-      'xml': 'xml',
-      'svg': 'xml',
-      'sh': 'shell',
-      'bash': 'shell',
-      'zsh': 'shell',
-      'sql': 'sql',
-      'graphql': 'graphql',
-      'gql': 'graphql',
-      'rs': 'rust',
-      'go': 'go',
-      'java': 'java',
-      'c': 'c',
-      'h': 'c',
-      'cpp': 'cpp',
-      'hpp': 'cpp',
-      'cc': 'cpp',
-      'rb': 'ruby',
-      'txt': 'plaintext',
-    };
-    
-    return languageMap[ext] || 'plaintext';
-  }
-
-  /**
-   * Set status message
-   */
-  #setStatus(message) {
-    if (this.#statusElement) {
-      this.#statusElement.textContent = message;
-    }
-  }
-
-  /**
-   * Show/hide loading overlay
-   */
-  #showLoading(show) {
-    const overlay = this.shadowRoot.querySelector('.loading-overlay');
-    if (overlay) {
-      overlay.classList.toggle('visible', show);
-    }
-  }
-
-  /**
-   * Handle keyboard events
-   */
-  #handleKeyDown(e) {
-    // Escape to close
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      this.close();
-      return;
-    }
-    
-    // Cmd/Ctrl+S to save
-    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-      e.preventDefault();
-      this.save();
-      return;
-    }
-    
-    // Cmd/Ctrl+W to close
-    if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
-      e.preventDefault();
-      this.close();
-      return;
-    }
-  }
-
-  /**
-   * Check if editor is open
-   */
-  get isOpen() {
-    return this.hasAttribute('open');
-  }
-
-  /**
-   * Get current file path
-   */
-  get filePath() {
-    return this.#filePath;
-  }
-
-  /**
-   * Get current working directory (directory of current file)
-   * Used by drop-zone for determining upload destination
-   */
-  get currentWorkingDirectory() {
-    if (!this.#filePath) return '/projects';
-    return this.#filePath.substring(0, this.#filePath.lastIndexOf('/')) || '/projects';
-  }
-
-  /**
-   * Check if file has unsaved changes
-   */
-  get isDirty() {
-    return this.#isDirty;
-  }
+    <//>
+  `;
 }
 
-customElements.define('coder-app', CoderApp);
+export default createShadowComponent(CoderApp, {
+  tag: 'coder-app',
+  styles,
+});

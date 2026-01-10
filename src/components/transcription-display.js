@@ -1,48 +1,116 @@
 /**
  * Transcription Display Component
- * Behavior only - template is in HTML via Declarative Shadow DOM
+ * Shows speech-to-text transcription results
  */
+import { html } from 'htm/preact';
+import { useSignal } from '@preact/signals';
+import { createShadowComponent } from '../lib/shadow-component.js';
+import { ErrorBoundary } from '../lib/error-boundary.js';
 
-export class TranscriptionDisplay extends HTMLElement {
-  #textElement = null;
+const styles = `
+  /* Transcription Display Component Styles */
 
-  static get observedAttributes() {
-    return ['active', 'interim'];
+  :host {
+    display: block;
+    contain: content;
+    min-height: 3rem;
+    max-width: 320px;
+    text-align: center;
+    animation: fade-in 1s ease forwards;
+    animation-delay: 0.6s;
+    opacity: 0;
   }
 
-  connectedCallback() {
-    this.#textElement = this.shadowRoot?.querySelector('.text');
+  .text {
+    font-family: var(--font-body, 'Cormorant Garamond', serif);
+    font-size: 1.1rem;
+    font-weight: 300;
+    font-style: italic;
+    color: var(--color-white-soft, rgba(255, 255, 255, 0.85));
+    line-height: 1.5;
+    display: block;
   }
 
-  get active() {
-    return this.hasAttribute('active');
+  :host([active]) .text {
+    color: var(--color-white, #FFFFFF);
   }
 
-  set active(value) {
-    this.toggleAttribute('active', Boolean(value));
+  .text.interim {
+    opacity: 0.7;
   }
 
-  get interim() {
-    return this.hasAttribute('interim');
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
-  set interim(value) {
-    this.toggleAttribute('interim', Boolean(value));
-  }
-
-  update(text, isInterim = false) {
-    if (this.#textElement) {
-      this.#textElement.textContent = text;
+  @media (max-width: 700px) {
+    :host {
+      max-width: 280px;
+      min-height: 2.5rem;
     }
-    this.interim = isInterim;
+
+    .text {
+      font-size: 1rem;
+    }
+  }
+`;
+
+function TranscriptionDisplay({ host }) {
+  const text = useSignal('');
+  const isInterim = useSignal(false);
+
+  // Expose methods for external control
+  host.update = (newText, interim = false) => {
+    text.value = newText;
+    isInterim.value = interim;
+    // Update host attribute to match original behavior
+    host.toggleAttribute('interim', interim);
+  };
+
+  host.clear = () => {
+    text.value = '';
+    isInterim.value = false;
+    host.toggleAttribute('interim', false);
+  };
+
+  // Expose active property
+  if (!Object.getOwnPropertyDescriptor(host, 'active')) {
+    Object.defineProperty(host, 'active', {
+      configurable: true,
+      get() {
+        return host.hasAttribute('active');
+      },
+      set(value) {
+        host.toggleAttribute('active', Boolean(value));
+      }
+    });
   }
 
-  clear() {
-    if (this.#textElement) {
-      this.#textElement.textContent = '';
-    }
-    this.interim = false;
+  if (!Object.getOwnPropertyDescriptor(host, 'interim')) {
+    Object.defineProperty(host, 'interim', {
+      configurable: true,
+      get() {
+        return host.hasAttribute('interim');
+      },
+      set(value) {
+        host.toggleAttribute('interim', Boolean(value));
+        isInterim.value = Boolean(value);
+      }
+    });
   }
+
+  return html`
+    <${ErrorBoundary} name="TranscriptionDisplay">
+      <span class=${`text ${isInterim.value ? 'interim' : ''}`}>
+        ${text.value || html`<slot></slot>`}
+      </span>
+    <//>
+  `;
 }
 
-customElements.define('transcription-display', TranscriptionDisplay);
+export default createShadowComponent(TranscriptionDisplay, {
+  tag: 'transcription-display',
+  styles,
+  observedAttributes: ['active', 'interim'],
+});

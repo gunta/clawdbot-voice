@@ -1,68 +1,145 @@
 /**
  * OS Header Component
- * Behavior only - template is in HTML via Declarative Shadow DOM
+ * Displays system badge and live clock with Preact + Signals
  */
 
+import { html } from 'htm/preact';
+import { useSignal } from '@preact/signals';
+import { useEffect } from 'preact/hooks';
+import { createShadowComponent } from '../lib/shadow-component.js';
+import { ErrorBoundary } from '../lib/error-boundary.js';
 import { chimes } from '../services/index.js';
 
-export class OsHeader extends HTMLElement {
-  #clockElement = null;
-  #badgeElement = null;
-  #intervalId = null;
-
-  static get observedAttributes() {
-    return ['badge'];
+const styles = `
+  :host {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-system, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+    font-size: var(--font-size-xs, 0.75rem);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--color-white-faint, rgba(255, 255, 255, 0.4));
+    animation: fade-in 1s ease forwards;
   }
 
-  connectedCallback() {
-    this.#clockElement = this.shadowRoot?.querySelector('.clock');
-    this.#badgeElement = this.shadowRoot?.querySelector('.badge');
-    this.#updateClock();
-    this.#intervalId = setInterval(() => this.#updateClock(), 1000);
-    
-    // Open clock modal and play chime when clock is clicked
-    this.#clockElement?.addEventListener('click', () => {
-      chimes.clockTap();
-      // Open the clock modal if it exists
-      const clockModal = document.querySelector('clock-modal');
-      if (clockModal) {
-        clockModal.open();
-      }
-    });
-    
-    // Open launchpad when badge is clicked
-    this.#badgeElement?.addEventListener('click', () => {
-      const launchpad = document.querySelector('launchpad-view');
-      if (launchpad) {
-        launchpad.open();
-      }
-    });
+  .badge {
+    border: 1px solid currentColor;
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
   }
 
-  disconnectedCallback() {
-    if (this.#intervalId) {
-      clearInterval(this.#intervalId);
-      this.#intervalId = null;
+  .badge:hover {
+    border-color: var(--color-primary, #C84536);
+    color: var(--color-primary, #C84536);
+    background: rgba(200, 69, 54, 0.1);
+  }
+
+  .badge:active {
+    transform: scale(0.95);
+  }
+
+  .clock {
+    font-variant-numeric: tabular-nums;
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+
+  .clock:hover {
+    color: var(--color-white-soft, rgba(255, 255, 255, 0.85));
+  }
+
+  .clock:active {
+    color: var(--color-white, #fff);
+  }
+
+  .hours,
+  .minutes {
+    display: inline-block;
+  }
+
+  .colon {
+    display: inline-block;
+    animation: colon-pulse 2s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  /* Smooth futuristic pulse - breathes like it's alive */
+  @keyframes colon-pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scaleY(1);
+    }
+    25% {
+      opacity: 0.3;
+      transform: scaleY(0.8);
+    }
+    50% {
+      opacity: 1;
+      transform: scaleY(1);
+    }
+    75% {
+      opacity: 0.3;
+      transform: scaleY(0.8);
     }
   }
 
-  attributeChangedCallback(name, oldValue, newValue) {
-    if (name === 'badge' && oldValue !== newValue) {
-      const badge = this.shadowRoot?.querySelector('.badge');
-      if (badge) badge.textContent = newValue;
-    }
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
   }
+`;
 
-  #updateClock() {
-    if (!this.#clockElement) return;
-    
-    const now = new Date();
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    
-    // Render with animated colon separator
-    this.#clockElement.innerHTML = `<span class="hours">${hours}</span><span class="colon">:</span><span class="minutes">${minutes}</span>`;
-  }
+function OsHeader({ badge = 'OS1' }) {
+  const time = useSignal(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      time.value = new Date();
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatTime = (date) => {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return { hours, minutes };
+  };
+
+  const handleClockClick = () => {
+    chimes.clockTap();
+    const clockModal = document.querySelector('clock-modal');
+    if (clockModal) {
+      clockModal.open();
+    }
+  };
+
+  const handleBadgeClick = () => {
+    const launchpad = document.querySelector('launchpad-view');
+    if (launchpad) {
+      launchpad.open();
+    }
+  };
+
+  const { hours, minutes } = formatTime(time.value);
+
+  return html`
+    <${ErrorBoundary} name="OsHeader">
+      <div class="badge" onClick=${handleBadgeClick}>${badge}</div>
+      <time class="clock" onClick=${handleClockClick}>
+        <span class="hours">${hours}</span>
+        <span class="colon">:</span>
+        <span class="minutes">${minutes}</span>
+      </time>
+    <//>
+  `;
 }
 
-customElements.define('os-header', OsHeader);
+export default createShadowComponent(OsHeader, { tag: 'os-header', styles });

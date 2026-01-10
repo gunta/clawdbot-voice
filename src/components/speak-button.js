@@ -1,68 +1,234 @@
 /**
  * Speak Button Component
- * Behavior only - template is in HTML via Declarative Shadow DOM
+ * Main interaction button for voice input
  */
-
+import { html } from 'htm/preact';
+import { signal, useSignalEffect } from '@preact/signals';
+import { createShadowComponent } from '../lib/shadow-component.js';
+import { ErrorBoundary } from '../lib/error-boundary.js';
 import { haptic } from '../services/haptic.js';
 
-export class SpeakButton extends HTMLElement {
-  #button = null;
-  #textSpan = null;
-  #defaultText = 'tap to speak';
+const styles = `
+  /* Speak Button Component Styles */
+  /* HDR-enabled with OKLCH colors */
 
-  static get observedAttributes() {
-    return ['listening', 'disabled'];
+  :host {
+    display: inline-block;
+    dynamic-range-limit: no-limit;
+    contain: content;
   }
 
-  connectedCallback() {
-    this.#button = this.shadowRoot?.querySelector('button');
-    this.#textSpan = this.shadowRoot?.querySelector('.text');
-    this.#defaultText = this.textContent?.trim() || 'tap to speak';
-
-    this.#button?.addEventListener('touchstart', () => haptic('light'), { passive: true });
-    this.#button?.addEventListener('click', () => this.#handleClick());
+  button {
+    position: relative;
+    background: transparent;
+    border: 1px solid var(--color-white-faint, oklch(1 0 0 / 0.4));
+    color: var(--color-white-soft, oklch(1 0 0 / 0.85));
+    padding: 0.75rem 2rem;
+    border-radius: 30px;
+    font-family: var(--font-body, 'Cormorant Garamond', serif);
+    font-size: 0.95rem;
+    font-weight: 400;
+    font-style: italic;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    animation: fade-in 1s ease forwards;
+    animation-delay: 0.8s;
+    opacity: 0;
+    overflow: hidden;
   }
 
-  get listening() {
-    return this.hasAttribute('listening');
+  button:hover {
+    border-color: var(--color-white-soft, oklch(1 0 0 / 0.85));
+    color: var(--color-white, oklch(1 0 0));
+    background: oklch(1 0 0 / 0.05);
+    transform: scale(1.02);
   }
 
-  set listening(value) {
-    const wasListening = this.listening;
-    this.toggleAttribute('listening', Boolean(value));
-    
-    if (this.#textSpan) {
-      this.#textSpan.textContent = value ? 'listening...' : this.#defaultText;
+  button:active {
+    transform: scale(0.96);
+    transition: transform 0.08s ease;
+  }
+
+  button.listening {
+    border-color: var(--color-white, oklch(1 0 0));
+    color: var(--color-white, oklch(1 0 0));
+    background: oklch(1 0 0 / 0.1);
+    animation: fade-in 1s ease forwards, pulse 1.5s ease-in-out infinite;
+  }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* Ripple effect */
+  .ripple {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: oklch(1 0 0 / 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  button:active .ripple {
+    width: 200px;
+    height: 200px;
+    opacity: 1;
+    transition: width 0.08s ease, height 0.08s ease, opacity 0s;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  /* HDR Enhancement */
+  @media (dynamic-range: high) {
+    button {
+      border-color: oklch(1.2 0 0 / 0.5);
+      color: var(--hdr-white-bright, oklch(1.15 0 0));
     }
-    
+
+    button:hover {
+      border-color: var(--hdr-white-vivid, oklch(1.3 0 0));
+      color: var(--hdr-white-peak, oklch(1.5 0 0));
+      box-shadow: 0 0 20px oklch(1.2 0 0 / 0.3);
+    }
+
+    button.listening {
+      border-color: var(--hdr-white-peak, oklch(1.5 0 0));
+      color: var(--hdr-white-peak, oklch(1.5 0 0));
+      box-shadow: 0 0 30px oklch(1.3 0 0 / 0.4);
+    }
+  }
+
+  @media (max-width: 700px) {
+    button {
+      padding: 0.6rem 1.5rem;
+      font-size: 0.9rem;
+    }
+  }
+`;
+
+function SpeakButton({ host }) {
+  const buttonText = signal('tap to speak');
+  const listening = signal(false);
+  const disabled = signal(false);
+  const defaultText = signal('tap to speak');
+
+  // Initialize default text from host's textContent
+  if (host.textContent?.trim()) {
+    defaultText.value = host.textContent.trim();
+    buttonText.value = defaultText.value;
+  }
+
+  // Watch for listening state changes and provide haptic feedback
+  let previousListening = false;
+  useSignalEffect(() => {
+    const isListening = listening.value;
+    buttonText.value = isListening ? 'listening...' : defaultText.value;
+
     // Haptic feedback on state change
-    if (value && !wasListening) {
+    if (isListening && !previousListening) {
       haptic('success'); // Started listening
     }
-  }
+    previousListening = isListening;
+  });
 
-  get disabled() {
-    return this.hasAttribute('disabled');
-  }
+  const handleTouchStart = () => {
+    haptic('light');
+  };
 
-  set disabled(value) {
-    this.toggleAttribute('disabled', Boolean(value));
-    if (this.#button) {
-      this.#button.disabled = Boolean(value);
-    }
-  }
+  const handleClick = () => {
+    if (disabled.value) return;
 
-  #handleClick() {
-    if (this.disabled) return;
-    
     // Haptic feedback on activation
     haptic('medium');
-    
-    this.dispatchEvent(new CustomEvent('speak-toggle', {
+
+    // Dispatch custom event for parent to handle
+    host.dispatchEvent(new CustomEvent('speak-toggle', {
       bubbles: true,
       composed: true,
     }));
+  };
+
+  // Expose properties to host element for compatibility
+  if (!Object.getOwnPropertyDescriptor(host, 'listening')) {
+    Object.defineProperty(host, 'listening', {
+      configurable: true,
+      get: () => listening.value,
+      set: (value) => {
+        listening.value = Boolean(value);
+        if (value) {
+          host.setAttribute('listening', '');
+        } else {
+          host.removeAttribute('listening');
+        }
+      },
+    });
   }
+
+  if (!Object.getOwnPropertyDescriptor(host, 'disabled')) {
+    Object.defineProperty(host, 'disabled', {
+      configurable: true,
+      get: () => disabled.value,
+      set: (value) => {
+        disabled.value = Boolean(value);
+        if (value) {
+          host.setAttribute('disabled', '');
+        } else {
+          host.removeAttribute('disabled');
+        }
+      },
+    });
+  }
+
+  // Watch for attribute changes
+  const attributeObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'attributes') {
+        const attrName = mutation.attributeName;
+        if (attrName === 'listening') {
+          listening.value = host.hasAttribute('listening');
+        } else if (attrName === 'disabled') {
+          disabled.value = host.hasAttribute('disabled');
+        }
+      }
+    });
+  });
+
+  attributeObserver.observe(host, { attributes: true });
+
+  return html`
+    <${ErrorBoundary} name="SpeakButton">
+      <button
+        type="button"
+        class=${listening.value ? 'listening' : ''}
+        disabled=${disabled.value}
+        onTouchStart=${handleTouchStart}
+        onClick=${handleClick}
+      >
+        <span class="text">${buttonText}</span>
+        <div class="ripple"></div>
+      </button>
+    <//>
+  `;
 }
 
-customElements.define('speak-button', SpeakButton);
+export default createShadowComponent(SpeakButton, {
+  tag: 'speak-button',
+  styles,
+  observedAttributes: ['listening', 'disabled'],
+});

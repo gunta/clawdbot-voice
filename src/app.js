@@ -1,17 +1,52 @@
+// @ts-check
 /**
  * CLAWD OS1 - Main Application
- * Orchestrates voice experience with XState navigation
+ * Orchestrates voice experience with XState navigation and Preact components
+ *
+ * @module ClawdOS1App
  */
 
-import { isReturningUser, speechSynthesis, wakeLockService, chimes, navigationService } from './services/index.js';
+// Enable Preact debug mode for helpful warnings and DevTools support
+import 'preact/debug';
+
+/** @typedef {import('./types.js').VoicePersona} VoicePersona */
+/** @typedef {import('./types.js').NavigationStateChangeDetail} NavigationStateChangeDetail */
+
+import { navigationService } from './services/navigation-service.js';
+import { initNavigationSignals } from './services/navigation-signals.js';
+import { componentGate } from './services/component-gate-service.js';
+import { isReturningUser, speechSynthesis, wakeLockService, chimes } from './services/index.js';
 import { voiceController, speechController, keyboardController } from './controllers/index.js';
+
+// Import all Preact shadow components
 import './components/index.js';
 
+/**
+ * @typedef {Object} CachedElements
+ * @property {HTMLElement|null} assistantCard
+ * @property {HTMLElement|null} lobsterCard
+ * @property {HTMLElement|null} waveform
+ * @property {HTMLElement|null} gpuWaveform
+ * @property {HTMLElement|null} transcription
+ * @property {HTMLElement|null} speakBtn
+ * @property {HTMLElement|null} status
+ */
+
 class ClawdOS1App {
+  /** @type {Partial<CachedElements>} */
   #elements = {};
 
+  /**
+   * Initialize the application
+   * @returns {Promise<void>}
+   */
   async init() {
-    this.#initNavigation();
+    // Initialize navigation (XState + Signals)
+    await this.#initNavigation();
+
+    // Initialize component gate worker
+    await this.#initComponentGate();
+
     this.#cacheElements();
     this.#initControllers();
     this.#setupKeyboard();
@@ -20,18 +55,23 @@ class ClawdOS1App {
     this.#initChimes();
     this.#greetReturningUser();
 
-    console.log('[CLAWD] OS1 initialized');
+    console.log('[CLAWD] OS1 initialized with Preact shadow components');
   }
 
   /**
-   * Initialize XState navigation service
+   * Initialize XState navigation service and Preact signals
+   * @returns {Promise<void>}
    */
-  #initNavigation() {
+  async #initNavigation() {
+    // Initialize XState navigation service
     navigationService.init();
-    
+
+    // Initialize Preact Signals wrapper
+    initNavigationSignals();
+
     // Expose navigation service for debugging
     this.navigation = navigationService;
-    
+
     // Log navigation state changes in development
     if (location.hostname === 'localhost') {
       navigationService.addEventListener('state-change', (e) => {
@@ -42,8 +82,21 @@ class ClawdOS1App {
         });
       });
     }
-    
+
     console.log('[CLAWD] Navigation service initialized');
+  }
+
+  /**
+   * Initialize component gate service
+   * @returns {Promise<void>}
+   */
+  async #initComponentGate() {
+    try {
+      await componentGate.init();
+      console.log('[CLAWD] Component gate initialized');
+    } catch (error) {
+      console.warn('[CLAWD] Component gate initialization failed:', error);
+    }
   }
 
   #cacheElements() {

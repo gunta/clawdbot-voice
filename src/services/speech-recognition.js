@@ -1,7 +1,19 @@
+// @ts-check
 /**
  * Speech Recognition Service
  * Voice-to-text with real-time transcription
+ * 
+ * @module SpeechRecognitionService
+ * 
+ * @fires SpeechRecognitionService#start - When recognition starts
+ * @fires SpeechRecognitionService#end - When recognition ends
+ * @fires SpeechRecognitionService#interim - Interim transcript available
+ * @fires SpeechRecognitionService#result - Final transcript available
+ * @fires SpeechRecognitionService#error - Recognition error occurred
  */
+
+/** @typedef {import('../types.js').SpeechErrorDetail} SpeechErrorDetail */
+/** @typedef {import('../types.js').TranscriptDetail} TranscriptDetail */
 
 class SpeechRecognitionService extends EventTarget {
   #recognition = null;
@@ -35,7 +47,7 @@ class SpeechRecognitionService extends EventTarget {
   start() {
     if (!this.#recognition) {
       this.dispatchEvent(new CustomEvent('error', { 
-        detail: { error: 'not-supported', message: 'Speech recognition not available' }
+        detail: /** @type {SpeechErrorDetail} */ ({ error: 'not-supported', message: 'Speech recognition not available' })
       }));
       return false;
     }
@@ -56,6 +68,7 @@ class SpeechRecognitionService extends EventTarget {
 
   /**
    * Stop listening
+   * @returns {void}
    */
   stop() {
     this.#recognition?.stop();
@@ -94,13 +107,13 @@ class SpeechRecognitionService extends EventTarget {
 
       if (interimTranscript) {
         this.dispatchEvent(new CustomEvent('interim', { 
-          detail: { transcript: interimTranscript }
+          detail: /** @type {TranscriptDetail} */ ({ transcript: interimTranscript })
         }));
       }
 
       if (finalTranscript) {
         this.dispatchEvent(new CustomEvent('result', { 
-          detail: { transcript: finalTranscript }
+          detail: /** @type {TranscriptDetail} */ ({ transcript: finalTranscript })
         }));
       }
     };
@@ -113,7 +126,7 @@ class SpeechRecognitionService extends EventTarget {
     this.#recognition.onerror = (event) => {
       this.#isListening = false;
       this.dispatchEvent(new CustomEvent('error', { 
-        detail: { error: event.error, message: this.#getErrorMessage(event.error) }
+        detail: /** @type {SpeechErrorDetail} */ ({ error: event.error, message: this.#getErrorMessage(event.error) })
       }));
     };
   }

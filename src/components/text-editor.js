@@ -1,322 +1,507 @@
 /**
- * Text Editor Component
+ * Text Editor Component - Preact Version
  * Native-feeling text editor for ClawdOS files
- * Uses contenteditable with modern HTML attributes
+ * Uses Preact + HTM + Signals pattern
  */
-
+import { html } from 'htm/preact';
+import { useSignal, useComputed, useSignalEffect } from '@preact/signals';
+import { useRef, useEffect } from 'preact/hooks';
+import { createShadowComponent } from '../lib/shadow-component.js';
+import { ErrorBoundary } from '../lib/error-boundary.js';
 import { agentfs, systemSounds } from '../services/index.js';
 
-export class TextEditor extends HTMLElement {
-  #editor = null;
-  #backBtn = null;
-  #closeBtn = null;
-  #saveBtn = null;
-  #titleElement = null;
-  #statusElement = null;
-  #boundHandleKeyDown = null;
-  
+const styles = `
+  /* Critical inline styles to prevent FOUC */
+  :host {
+    position: fixed;
+    inset: 0;
+    z-index: 950;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-red, oklch(0.55 0.155 25));
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+    dynamic-range-limit: no-limit;
+  }
+
+  :host([open]) {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid oklch(1 0 0 / 0.12);
+    flex-shrink: 0;
+    background: oklch(0 0 0 / 0.15);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+  }
+
+  .header-left,
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 120px;
+  }
+
+  .header-left {
+    justify-content: flex-start;
+  }
+
+  .header-right {
+    justify-content: flex-end;
+  }
+
+  /* Back and Close buttons - elegant style */
+  .back-btn,
+  .close-btn {
+    background: transparent;
+    border: 1px solid oklch(1 0 0 / 0.35);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.15s ease;
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .back-btn:hover,
+  .close-btn:hover {
+    border-color: oklch(1 0 0 / 0.7);
+    background: oklch(1 0 0 / 0.1);
+    transform: scale(1.02);
+  }
+
+  .back-btn:active,
+  .close-btn:active {
+    transform: scale(0.96);
+    transition: transform 0.08s ease;
+  }
+
+  .back-btn svg,
+  .close-btn svg {
+    width: 1rem;
+    height: 1rem;
+    stroke: oklch(1 0 0 / 0.6);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    transition: stroke 0.15s ease;
+  }
+
+  .back-btn:hover svg,
+  .close-btn:hover svg {
+    stroke: oklch(1 0 0 / 0.95);
+  }
+
+  /* Title area */
+  .title-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .title {
+    font-family: var(--font-body, 'Cormorant Garamond', serif);
+    font-size: 0.95rem;
+    font-style: italic;
+    font-weight: 400;
+    color: oklch(1 0 0 / 0.85);
+    letter-spacing: 0.06em;
+  }
+
+  .title.dirty::after {
+    content: ' •';
+    color: oklch(1 0 0 / 0.6);
+  }
+
+  .status {
+    font-family: var(--font-body, 'Cormorant Garamond', serif);
+    font-size: 0.7rem;
+    font-style: italic;
+    color: oklch(1 0 0 / 0.5);
+    letter-spacing: 0.06em;
+    min-height: 1em;
+  }
+
+  /* Save button - elegant pill style */
+  .save-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid oklch(1 0 0 / 0.35);
+    background: transparent;
+    border-radius: var(--radius-lg, 30px);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: var(--font-body, 'Cormorant Garamond', serif);
+    font-size: 0.8rem;
+    font-style: italic;
+    color: oklch(1 0 0 / 0.6);
+    letter-spacing: 0.08em;
+  }
+
+  .save-btn:hover {
+    border-color: oklch(1 0 0 / 0.7);
+    background: oklch(1 0 0 / 0.1);
+    color: oklch(1 0 0 / 0.95);
+    transform: scale(1.02);
+  }
+
+  .save-btn:active {
+    transform: scale(0.96);
+    transition: transform 0.08s ease;
+  }
+
+  :host([dirty]) .save-btn {
+    border-color: oklch(1 0 0 / 0.7);
+    color: oklch(1 0 0 / 0.95);
+  }
+
+  .save-btn svg {
+    width: 0.9rem;
+    height: 0.9rem;
+    stroke: currentColor;
+    stroke-width: 1.25;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* Editor Container */
+  .editor-container {
+    flex: 1;
+    overflow: auto;
+    padding: 2rem;
+    background: oklch(0.12 0.01 25);
+  }
+
+  /* Editor */
+  .editor {
+    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+    font-size: 0.9rem;
+    line-height: 1.8;
+    color: oklch(1 0 0 / 0.9);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    outline: none;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    caret-color: oklch(1 0 0 / 0.85);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    tab-size: 2;
+    -moz-tab-size: 2;
+  }
+
+  /* Placeholder */
+  .editor:empty::before {
+    content: attr(data-placeholder);
+    color: oklch(1 0 0 / 0.25);
+    font-family: var(--font-body, 'Cormorant Garamond', serif);
+    font-style: italic;
+    pointer-events: none;
+  }
+
+  /* Selection */
+  .editor::selection {
+    background: oklch(1 0 0 / 0.2);
+  }
+
+  .editor::-moz-selection {
+    background: oklch(1 0 0 / 0.2);
+  }
+
+  /* Focus indicator - subtle */
+  .editor:focus {
+    animation: editor-focus 0.3s ease;
+  }
+
+  @keyframes editor-focus {
+    from {
+      box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.2);
+    }
+    to {
+      box-shadow: inset 0 0 0 0 transparent;
+    }
+  }
+
+  /* Footer */
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid oklch(1 0 0 / 0.12);
+    flex-shrink: 0;
+    background: oklch(0 0 0 / 0.15);
+  }
+
+  .file-info,
+  .cursor-position {
+    font-family: var(--font-body, 'Cormorant Garamond', serif);
+    font-size: 0.7rem;
+    font-style: italic;
+    color: oklch(1 0 0 / 0.4);
+    letter-spacing: 0.06em;
+  }
+
+  /* Scrollbar */
+  .editor-container::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .editor-container::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .editor-container::-webkit-scrollbar-thumb {
+    background: oklch(1 0 0 / 0.15);
+    border-radius: 3px;
+  }
+
+  .editor-container::-webkit-scrollbar-thumb:hover {
+    background: oklch(1 0 0 / 0.25);
+  }
+
+  /* HDR Enhancement */
+  @media (dynamic-range: high) {
+    .back-btn:hover,
+    .close-btn:hover,
+    .save-btn:hover {
+      border-color: var(--hdr-white-bright, oklch(1.15 0 0));
+    }
+
+    .title {
+      color: var(--hdr-white-bright, oklch(1.15 0 0));
+    }
+  }
+
+  /* Mobile adjustments */
+  @media (max-width: 600px) {
+    .header {
+      padding: 1rem;
+    }
+
+    .editor-container {
+      padding: 1.5rem;
+    }
+
+    .editor {
+      font-size: 0.85rem;
+      line-height: 1.7;
+    }
+
+    .save-btn span {
+      display: none;
+    }
+
+    .save-btn {
+      padding: 0.5rem;
+      border-radius: 50%;
+      width: 2.25rem;
+      height: 2.25rem;
+    }
+
+    .footer {
+      padding: 0.75rem 1rem;
+    }
+  }
+
+  /* Safe area insets for iOS */
+  @supports (padding: env(safe-area-inset-bottom)) {
+    .footer {
+      padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    }
+  }
+`;
+
+function TextEditor({ host }) {
   // State
-  #filePath = null;
-  #originalContent = '';
-  #isDirty = false;
-  #isSaving = false;
+  const content = useSignal('');
+  const fileName = useSignal('Untitled');
+  const filePath = useSignal(null);
+  const originalContent = useSignal('');
+  const isDirty = useComputed(() => content.value !== originalContent.value);
+  const isSaving = useSignal(false);
+  const status = useSignal('');
+  const fileInfo = useSignal('');
+  const cursorPosition = useSignal('Ln 1, Col 1');
+  const isOpen = useSignal(false);
 
-  constructor() {
-    super();
-    this.attachShadow({ mode: 'open' });
-    this.shadowRoot.innerHTML = `
-      <style>
-        /* Critical inline styles to prevent FOUC */
-        :host {
-          position: fixed;
-          inset: 0;
-          opacity: 0;
-          visibility: hidden;
-        }
-      </style>
-      <link rel="stylesheet" href="src/components/styles/text-editor.css">
-      
-      <div class="header">
-        <div class="header-left">
-          <button class="back-btn" type="button" aria-label="Back to Files">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M19 12H5M5 12L12 19M5 12L12 5" />
-            </svg>
-          </button>
-        </div>
-        <div class="title-area">
-          <span class="title">Untitled</span>
-          <span class="status"></span>
-        </div>
-        <div class="header-right">
-          <button class="save-btn" type="button" aria-label="Save file">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16L21 8V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21Z" />
-              <polyline points="17 21 17 13 7 13 7 21" />
-              <polyline points="7 3 7 8 15 8" />
-            </svg>
-            <span>Save</span>
-          </button>
-          <button class="close-btn" type="button" aria-label="Close editor">
-            <svg viewBox="0 0 24 24" fill="none">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-      </div>
-      
-      <div class="editor-container">
-        <pre class="editor" 
-             contenteditable="plaintext-only"
-             spellcheck="false"
-             autocomplete="off"
-             autocorrect="off"
-             autocapitalize="off"
-             data-placeholder="Start typing..."
-             role="textbox"
-             aria-multiline="true"
-             aria-label="Text editor"></pre>
-      </div>
-      
-      <div class="footer">
-        <span class="file-info"></span>
-        <span class="cursor-position">Ln 1, Col 1</span>
-      </div>
-    `;
-  }
-
-  connectedCallback() {
-    this.#editor = this.shadowRoot.querySelector('.editor');
-    this.#backBtn = this.shadowRoot.querySelector('.back-btn');
-    this.#closeBtn = this.shadowRoot.querySelector('.close-btn');
-    this.#saveBtn = this.shadowRoot.querySelector('.save-btn');
-    this.#titleElement = this.shadowRoot.querySelector('.title');
-    this.#statusElement = this.shadowRoot.querySelector('.status');
-    
-    // Event handlers
-    this.#backBtn?.addEventListener('click', () => this.back());
-    this.#closeBtn?.addEventListener('click', () => this.close());
-    this.#saveBtn?.addEventListener('click', () => this.save());
-    
-    // Editor events
-    this.#editor?.addEventListener('input', () => this.#handleInput());
-    this.#editor?.addEventListener('keyup', () => this.#updateCursorPosition());
-    this.#editor?.addEventListener('click', () => this.#updateCursorPosition());
-    
-    // Keyboard
-    this.#boundHandleKeyDown = this.#handleKeyDown.bind(this);
-  }
-
-  disconnectedCallback() {
-    document.removeEventListener('keydown', this.#boundHandleKeyDown);
-  }
+  // Refs
+  const editorRef = useRef(null);
 
   /**
    * Open a file in the editor
-   * @param {string} path - File path
    */
-  async open(path) {
-    this.#filePath = path;
-    this.setAttribute('open', '');
-    document.addEventListener('keydown', this.#boundHandleKeyDown);
-    
+  host.open = async (path) => {
+    filePath.value = path;
+    isOpen.value = true;
+    host.setAttribute('open', '');
+
     // Play open sound
     systemSounds.open();
-    
-    // Update title
-    const fileName = path.split('/').pop();
-    this.#titleElement.textContent = fileName;
-    this.#updateFileInfo(path);
-    
+
+    // Update title and file info
+    const name = path.split('/').pop();
+    fileName.value = name;
+    updateFileInfo(path);
+
     // Load content
-    await this.#loadFile();
-    
+    await loadFile(path);
+
     // Focus editor
     setTimeout(() => {
-      this.#editor?.focus();
-      this.#updateCursorPosition();
+      if (editorRef.current) {
+        editorRef.current.focus();
+        updateCursorPosition();
+      }
     }, 100);
-    
-    this.dispatchEvent(new CustomEvent('editor-open', { 
-      bubbles: true, 
-      detail: { path } 
+
+    // Dispatch event
+    host.dispatchEvent(new CustomEvent('editor-open', {
+      bubbles: true,
+      detail: { path }
     }));
-  }
+  };
 
   /**
    * Close the editor
    */
-  close() {
-    this.removeAttribute('open');
-    document.removeEventListener('keydown', this.#boundHandleKeyDown);
-    
+  host.close = () => {
+    isOpen.value = false;
+    host.removeAttribute('open');
+
     // Reset state
-    this.#filePath = null;
-    this.#originalContent = '';
-    this.#isDirty = false;
-    if (this.#editor) {
-      this.#editor.textContent = '';
-    }
-    
+    filePath.value = null;
+    originalContent.value = '';
+    content.value = '';
+    fileName.value = 'Untitled';
+
     // Play close sound
     systemSounds.close();
-    
-    this.dispatchEvent(new CustomEvent('editor-close', { bubbles: true }));
-  }
+
+    // Dispatch event
+    host.dispatchEvent(new CustomEvent('editor-close', { bubbles: true }));
+  };
 
   /**
    * Go back to Files app
    */
-  back() {
+  const handleBack = () => {
     // Close editor first
-    this.removeAttribute('open');
-    document.removeEventListener('keydown', this.#boundHandleKeyDown);
-    
+    isOpen.value = false;
+    host.removeAttribute('open');
+
     // Get the directory of the current file
-    const directory = this.#filePath 
-      ? this.#filePath.substring(0, this.#filePath.lastIndexOf('/')) || '/'
+    const directory = filePath.value
+      ? filePath.value.substring(0, filePath.value.lastIndexOf('/')) || '/'
       : '/';
-    
+
     // Reset state
-    this.#filePath = null;
-    this.#originalContent = '';
-    this.#isDirty = false;
-    if (this.#editor) {
-      this.#editor.textContent = '';
-    }
-    
+    const currentPath = filePath.value;
+    filePath.value = null;
+    originalContent.value = '';
+    content.value = '';
+    fileName.value = 'Untitled';
+
     // Play back sound
     systemSounds.back();
-    
+
     // Open Files app at the directory
     const filesApp = document.getElementById('filesApp');
     if (filesApp) {
       filesApp.navigateTo(directory);
       filesApp.open();
     }
-    
-    this.dispatchEvent(new CustomEvent('editor-back', { bubbles: true }));
-  }
+
+    // Dispatch event
+    host.dispatchEvent(new CustomEvent('editor-back', { bubbles: true }));
+  };
 
   /**
    * Save the file
    */
-  async save() {
-    if (!this.#filePath || this.#isSaving) return;
-    
-    this.#isSaving = true;
-    this.#setStatus('Saving...');
-    
+  const handleSave = async () => {
+    if (!filePath.value || isSaving.value) return;
+
+    isSaving.value = true;
+    status.value = 'Saving...';
+
     try {
-      const content = this.#editor?.textContent || '';
-      await agentfs.writeFile(this.#filePath, content);
-      
-      this.#originalContent = content;
-      this.#isDirty = false;
-      this.#updateDirtyState();
-      
+      await agentfs.writeFile(filePath.value, content.value);
+
+      originalContent.value = content.value;
+
       // Play save sound
       systemSounds.success();
-      
-      this.#setStatus('Saved');
-      setTimeout(() => this.#setStatus(''), 2000);
-      
-      this.dispatchEvent(new CustomEvent('editor-save', { 
-        bubbles: true, 
-        detail: { path: this.#filePath } 
+
+      status.value = 'Saved';
+      setTimeout(() => { status.value = ''; }, 2000);
+
+      // Dispatch event
+      host.dispatchEvent(new CustomEvent('editor-save', {
+        bubbles: true,
+        detail: { path: filePath.value }
       }));
     } catch (err) {
       console.error('[TextEditor] Save failed:', err);
-      this.#setStatus('Save failed');
+      status.value = 'Save failed';
       systemSounds.error();
     } finally {
-      this.#isSaving = false;
+      isSaving.value = false;
     }
-  }
+  };
 
   /**
    * Load file content
    */
-  async #loadFile() {
-    if (!this.#filePath || !this.#editor) return;
-    
-    this.#setStatus('Loading...');
-    
+  const loadFile = async (path) => {
+    if (!path) return;
+
+    status.value = 'Loading...';
+
     try {
-      const content = await agentfs.readFile(this.#filePath, 'utf-8');
-      this.#originalContent = content || '';
-      this.#editor.textContent = this.#originalContent;
-      this.#isDirty = false;
-      this.#updateDirtyState();
-      this.#setStatus('');
+      const fileContent = await agentfs.readFile(path, 'utf-8');
+      originalContent.value = fileContent || '';
+      content.value = fileContent || '';
+      status.value = '';
     } catch (err) {
       console.error('[TextEditor] Load failed:', err);
-      this.#editor.textContent = '';
-      this.#setStatus('Failed to load');
+      content.value = '';
+      status.value = 'Failed to load';
     }
-  }
+  };
 
   /**
    * Handle editor input
    */
-  #handleInput() {
-    const currentContent = this.#editor?.textContent || '';
-    const wasDirty = this.#isDirty;
-    this.#isDirty = currentContent !== this.#originalContent;
-    
-    if (wasDirty !== this.#isDirty) {
-      this.#updateDirtyState();
-    }
-  }
-
-  /**
-   * Update dirty (unsaved) state UI
-   */
-  #updateDirtyState() {
-    if (this.#isDirty) {
-      this.setAttribute('dirty', '');
-      this.#titleElement.classList.add('dirty');
-    } else {
-      this.removeAttribute('dirty');
-      this.#titleElement.classList.remove('dirty');
-    }
-  }
-
-  /**
-   * Update cursor position display
-   */
-  #updateCursorPosition() {
-    const positionEl = this.shadowRoot.querySelector('.cursor-position');
-    if (!positionEl || !this.#editor) return;
-    
-    const selection = this.shadowRoot.getSelection?.() || window.getSelection();
-    if (!selection?.rangeCount) return;
-    
-    const content = this.#editor.textContent || '';
-    const range = selection.getRangeAt(0);
-    
-    // Get text before cursor
-    const preCaretRange = range.cloneRange();
-    preCaretRange.selectNodeContents(this.#editor);
-    preCaretRange.setEnd(range.endContainer, range.endOffset);
-    const textBeforeCursor = preCaretRange.toString();
-    
-    // Calculate line and column
-    const lines = textBeforeCursor.split('\n');
-    const line = lines.length;
-    const col = lines[lines.length - 1].length + 1;
-    
-    positionEl.textContent = `Ln ${line}, Col ${col}`;
-  }
+  const handleInput = (e) => {
+    content.value = e.target.textContent || '';
+  };
 
   /**
    * Update file info display
    */
-  #updateFileInfo(path) {
-    const infoEl = this.shadowRoot.querySelector('.file-info');
-    if (!infoEl) return;
-    
+  const updateFileInfo = (path) => {
     const ext = path.split('.').pop()?.toLowerCase();
     const typeMap = {
       'json': 'JSON',
@@ -329,77 +514,158 @@ export class TextEditor extends HTMLElement {
       'yaml': 'YAML',
       'yml': 'YAML'
     };
-    
-    infoEl.textContent = typeMap[ext] || ext?.toUpperCase() || 'Text';
-  }
+
+    fileInfo.value = typeMap[ext] || ext?.toUpperCase() || 'Text';
+  };
 
   /**
-   * Set status message
+   * Update cursor position display
    */
-  #setStatus(message) {
-    if (this.#statusElement) {
-      this.#statusElement.textContent = message;
-    }
-  }
+  const updateCursorPosition = () => {
+    if (!editorRef.current) return;
 
-  /**
-   * Prompt before closing if dirty
-   */
-  #promptClose() {
-    if (this.#isDirty) {
-      // For now, just close. Could add confirmation dialog later.
-      this.close();
-    } else {
-      this.close();
-    }
-  }
+    const selection = host.shadowRoot.getSelection?.() || window.getSelection();
+    if (!selection?.rangeCount) return;
+
+    const range = selection.getRangeAt(0);
+
+    // Get text before cursor
+    const preCaretRange = range.cloneRange();
+    preCaretRange.selectNodeContents(editorRef.current);
+    preCaretRange.setEnd(range.endContainer, range.endOffset);
+    const textBeforeCursor = preCaretRange.toString();
+
+    // Calculate line and column
+    const lines = textBeforeCursor.split('\n');
+    const line = lines.length;
+    const col = lines[lines.length - 1].length + 1;
+
+    cursorPosition.value = `Ln ${line}, Col ${col}`;
+  };
 
   /**
    * Handle keyboard events
    */
-  #handleKeyDown(e) {
+  const handleKeyDown = (e) => {
     // Escape to close
     if (e.key === 'Escape') {
       e.preventDefault();
-      this.#promptClose();
+      promptClose();
       return;
     }
-    
+
     // Cmd/Ctrl+S to save
     if ((e.metaKey || e.ctrlKey) && e.key === 's') {
       e.preventDefault();
-      this.save();
+      handleSave();
       return;
     }
-    
+
     // Cmd/Ctrl+W to close
     if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
       e.preventDefault();
-      this.#promptClose();
+      promptClose();
       return;
     }
-  }
+  };
 
   /**
-   * Check if editor is open
+   * Prompt before closing if dirty
    */
-  get isOpen() {
-    return this.hasAttribute('open');
-  }
+  const promptClose = () => {
+    // For now, just close. Could add confirmation dialog later.
+    host.close();
+  };
 
-  /**
-   * Get current file path
-   */
-  get filePath() {
-    return this.#filePath;
-  }
+  // Update dirty state attribute
+  useSignalEffect(() => {
+    if (isDirty.value) {
+      host.setAttribute('dirty', '');
+    } else {
+      host.removeAttribute('dirty');
+    }
+  });
 
-  /**
-   * Check if file has unsaved changes
-   */
-  get isDirty() {
-    return this.#isDirty;
-  }
+  // Add keyboard listener on mount
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  return html`
+    <${ErrorBoundary} name="TextEditor">
+      <div class="header">
+        <div class="header-left">
+          <button
+            class="back-btn"
+            type="button"
+            aria-label="Back to Files"
+            onClick=${handleBack}
+          >
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M19 12H5M5 12L12 19M5 12L12 5" />
+            </svg>
+          </button>
+        </div>
+        <div class="title-area">
+          <span class="${'title' + (isDirty.value ? ' dirty' : '')}">${fileName.value}</span>
+          <span class="status">${status.value}</span>
+        </div>
+        <div class="header-right">
+          <button
+            class="save-btn"
+            type="button"
+            aria-label="Save file"
+            onClick=${handleSave}
+          >
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16L21 8V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21Z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            <span>Save</span>
+          </button>
+          <button
+            class="close-btn"
+            type="button"
+            aria-label="Close editor"
+            onClick=${() => promptClose()}
+          >
+            <svg viewBox="0 0 24 24" fill="none">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="editor-container">
+        <pre
+          class="editor"
+          ref=${editorRef}
+          contenteditable="plaintext-only"
+          spellcheck="false"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          data-placeholder="Start typing..."
+          role="textbox"
+          aria-multiline="true"
+          aria-label="Text editor"
+          onInput=${handleInput}
+          onKeyUp=${updateCursorPosition}
+          onClick=${updateCursorPosition}
+        >${content.value}</pre>
+      </div>
+
+      <div class="footer">
+        <span class="file-info">${fileInfo.value}</span>
+        <span class="cursor-position">${cursorPosition.value}</span>
+      </div>
+    <//>
+  `;
 }
 
-customElements.define('text-editor', TextEditor);
+export default createShadowComponent(TextEditor, { tag: 'text-editor', styles });

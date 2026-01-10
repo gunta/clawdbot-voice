@@ -4,6 +4,7 @@
   "type": "module",
   "description": "CLAWD OS1 - A voice experience",
   "scripts": {
+    "dev": "npx serve .",
     "serve": "npx serve .",
     "deploy:cloudflare": "wrangler pages deploy .",
     "deploy:vercel": "vercel"

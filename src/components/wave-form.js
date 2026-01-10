@@ -1,112 +1,146 @@
 /**
  * Wave Form Component
- * Audio-reactive visualization bars
+ * Animated waveform visualization with bars
  */
-
+import { html } from 'htm/preact';
+import { useSignal, useSignalEffect } from '@preact/signals';
+import { useRef, useEffect } from 'preact/hooks';
+import { createShadowComponent } from '../lib/shadow-component.js';
+import { ErrorBoundary } from '../lib/error-boundary.js';
 import { audioAnalyzer } from '../services/audio-analyzer.js';
 
-export class WaveForm extends HTMLElement {
-  #bars = [];
-  #boundUpdateBars = null;
+const styles = `
+  /* Wave Form Component Styles */
 
-  static get observedAttributes() {
-    return ['active', 'bars'];
+  :host {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: var(--waveform-height, 40px);
+    opacity: 0.3;
+    transition: opacity 0.4s ease;
+    contain: content;
   }
 
-  connectedCallback() {
-    // Small delay to ensure Declarative Shadow DOM is fully ready
-    requestAnimationFrame(() => {
-      this.#cacheBars();
-      console.log('[WaveForm] Initialized with', this.#bars.length, 'bars');
-    });
-    
-    // Listen for audio level changes
-    this.#boundUpdateBars = (e) => this.#updateBars(e.detail);
-    audioAnalyzer.addEventListener('levels', this.#boundUpdateBars);
+  :host([active]) {
+    opacity: 1 !important;
+    animation: none;
   }
 
-  disconnectedCallback() {
-    if (this.#boundUpdateBars) {
-      audioAnalyzer.removeEventListener('levels', this.#boundUpdateBars);
+  /* Initial fade-in animation (only when not active) */
+  :host(:not([active])) {
+    animation: fade-in 1s ease forwards;
+    animation-delay: 0.5s;
+    opacity: 0;
+  }
+
+  .bar {
+    width: 3px;
+    height: var(--wave-bar-height, 15px);
+    background: var(--color-white, #FFFFFF);
+    border-radius: 2px;
+    transition: height 0.05s ease-out;
+    will-change: height;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 0.3; transform: translateY(0); }
+  }
+
+  @keyframes wave-move {
+    0%, 100% { height: var(--wave-bar-height, 15px); }
+    50% { height: var(--wave-bar-height-active, 35px); }
+  }
+
+  @media (max-width: 700px) {
+    :host {
+      height: 30px;
     }
   }
+`;
 
-  #cacheBars() {
-    this.#bars = Array.from(this.shadowRoot?.querySelectorAll('.bar') || []);
-  }
+function WaveForm({ host, bars = 7 }) {
+  const isActive = useSignal(false);
+  const barCount = parseInt(bars) || 7;
+  const barRefs = useRef([]);
 
-  #updateBars({ levels }) {
-    if (!this.active) return;
-    
-    // Ensure bars are cached (defensive re-query)
-    if (!this.#bars.length) {
-      this.#cacheBars();
-    }
-    
-    if (!this.#bars.length) return;
+  // Handle audio levels
+  useEffect(() => {
+    const handleLevels = (e) => {
+      if (!isActive.value) return;
 
-    this.#bars.forEach((bar, index) => {
-      // Map bar index to frequency bands (mirror for symmetric look)
-      const centerIndex = Math.floor(this.#bars.length / 2);
-      const distance = Math.abs(index - centerIndex);
-      const bandIndex = Math.min(distance, levels.length - 1);
-      const level = levels[bandIndex];
-      
-      // Calculate height based on level (15px to 45px)
-      const minHeight = 15;
-      const maxHeight = 45;
-      const height = minHeight + level * (maxHeight - minHeight);
-      
-      bar.style.height = `${height}px`;
-    });
-  }
+      const { levels } = e.detail;
+      const bars = barRefs.current;
 
-  get active() {
-    return this.hasAttribute('active');
-  }
+      if (!bars.length) return;
 
-  set active(value) {
-    const wasActive = this.active;
-    this.toggleAttribute('active', Boolean(value));
-    
-    // Reset bars when becoming inactive
-    if (wasActive && !value) {
-      this.#bars.forEach(bar => {
-        bar.style.height = '';
+      bars.forEach((bar, index) => {
+        if (!bar) return;
+
+        // Map bar index to frequency bands (mirror for symmetric look)
+        const centerIndex = Math.floor(bars.length / 2);
+        const distance = Math.abs(index - centerIndex);
+        const bandIndex = Math.min(distance, levels.length - 1);
+        const level = levels[bandIndex];
+
+        // Calculate height based on level (15px to 45px)
+        const minHeight = 15;
+        const maxHeight = 45;
+        const height = minHeight + level * (maxHeight - minHeight);
+
+        bar.style.height = `${height}px`;
+      });
+    };
+
+    audioAnalyzer.addEventListener('levels', handleLevels);
+    return () => {
+      audioAnalyzer.removeEventListener('levels', handleLevels);
+    };
+  }, [isActive.value]);
+
+  // Reset bars when becoming inactive
+  useSignalEffect(() => {
+    if (!isActive.value) {
+      barRefs.current.forEach(bar => {
+        if (bar) bar.style.height = '';
       });
     }
-    
-    // Cache bars when becoming active
-    if (!wasActive && value) {
-      this.#cacheBars();
+  });
+
+  // Expose methods and sync active attribute
+  useEffect(() => {
+    host.start = () => {
+      isActive.value = true;
+      host.setAttribute('active', '');
+    };
+    host.stop = () => {
+      isActive.value = false;
+      host.removeAttribute('active');
+    };
+
+    // Sync with attribute
+    if (host.hasAttribute('active')) {
+      isActive.value = true;
     }
-  }
+  }, []);
 
-  attributeChangedCallback(name, oldValue, newValue) {
-    if (name === 'bars' && oldValue !== newValue) {
-      this.#updateBarCount(parseInt(newValue, 10));
-    }
-  }
-
-  #updateBarCount(count) {
-    const shadowRoot = this.shadowRoot;
-    if (!shadowRoot) return;
-    
-    const existingBars = shadowRoot.querySelectorAll('.bar');
-    if (count === existingBars.length) return;
-
-    // Remove all existing bars
-    existingBars.forEach(bar => bar.remove());
-
-    // Add new bars
-    for (let i = 0; i < count; i++) {
-      const bar = document.createElement('div');
-      bar.className = 'bar';
-      shadowRoot.appendChild(bar);
-    }
-    
-    this.#cacheBars();
-  }
+  return html`
+    <${ErrorBoundary} name="WaveForm">
+      ${Array.from({ length: barCount }, (_, i) => html`
+        <div
+          key=${i}
+          class="bar"
+          ref=${(el) => { barRefs.current[i] = el; }}
+        ></div>
+      `)}
+    <//>
+  `;
 }
 
-customElements.define('wave-form', WaveForm);
+export default createShadowComponent(WaveForm, {
+  tag: 'wave-form',
+  styles,
+  observedAttributes: ['active', 'bars'],
+});

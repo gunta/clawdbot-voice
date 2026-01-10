@@ -1,6 +1,9 @@
+// @ts-check
 /**
  * Navigation State Machine
  * XState v5 machine for managing window navigation with back/forward/close
+ * 
+ * @module NavigationMachine
  * 
  * Features:
  * - Back/Forward navigation stack (like browser history)
@@ -11,29 +14,10 @@
 
 import { createMachine, assign } from 'https://esm.sh/xstate@5';
 
-/**
- * @typedef {Object} WindowRef
- * @property {string} id - Window identifier (e.g., 'files', 'coder')
- * @property {string} title - Display title
- * @property {Object} [state] - App-specific state to restore
- * @property {number} timestamp - When window was opened
- */
-
-/**
- * @typedef {Object} ModalRef
- * @property {string} id - Modal identifier (e.g., 'clock', 'settings')
- * @property {Object} [state] - Modal-specific state
- * @property {number} timestamp - When modal was presented
- */
-
-/**
- * @typedef {Object} NavigationContext
- * @property {WindowRef[]} backStack - History for back navigation
- * @property {WindowRef[]} forwardStack - Future for forward navigation
- * @property {WindowRef|null} current - Currently active window
- * @property {ModalRef[]} modalStack - Modal overlay stack
- * @property {'push'|'back'|'forward'|'close'|null} transitionDirection - Animation direction
- */
+/** @typedef {import('../types.js').WindowRef} WindowRef */
+/** @typedef {import('../types.js').ModalRef} ModalRef */
+/** @typedef {import('../types.js').NavigationContext} NavigationContext */
+/** @typedef {import('../types.js').TransitionDirection} TransitionDirection */
 
 export const navigationMachine = createMachine({
   id: 'navigation',
@@ -258,14 +242,48 @@ export const navigationMachine = createMachine({
   },
 });
 
-// Export event creators for convenience
+/**
+ * Event creators for navigation actions
+ */
 export const navigationEvents = {
+  /**
+   * Create a PUSH event
+   * @param {string} id - Window identifier
+   * @param {string} [title] - Display title
+   * @param {Record<string, unknown>} [state] - Initial state
+   * @returns {{ type: 'PUSH', id: string, title?: string, state?: Record<string, unknown> }}
+   */
   push: (id, title, state) => ({ type: 'PUSH', id, title, state }),
+  
+  /** @returns {{ type: 'BACK' }} */
   back: () => ({ type: 'BACK' }),
+  
+  /** @returns {{ type: 'FORWARD' }} */
   forward: () => ({ type: 'FORWARD' }),
+  
+  /** @returns {{ type: 'CLOSE' }} */
   close: () => ({ type: 'CLOSE' }),
+  
+  /**
+   * Create a PRESENT event
+   * @param {string} id - Modal identifier
+   * @param {Record<string, unknown>} [state] - Initial state
+   * @returns {{ type: 'PRESENT', id: string, state?: Record<string, unknown> }}
+   */
   present: (id, state) => ({ type: 'PRESENT', id, state }),
+  
+  /** @returns {{ type: 'DISMISS' }} */
   dismiss: () => ({ type: 'DISMISS' }),
+  
+  /**
+   * @param {Record<string, unknown>} state - State to merge
+   * @returns {{ type: 'UPDATE_STATE', state: Record<string, unknown> }}
+   */
   updateState: (state) => ({ type: 'UPDATE_STATE', state }),
+  
+  /**
+   * @param {string} title - New title
+   * @returns {{ type: 'UPDATE_TITLE', title: string }}
+   */
   updateTitle: (title) => ({ type: 'UPDATE_TITLE', title }),
 };

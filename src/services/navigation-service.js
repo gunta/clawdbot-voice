@@ -1,6 +1,9 @@
+// @ts-check
 /**
  * Navigation Service
  * Singleton service wrapping XState actor for window/modal navigation
+ * 
+ * @module NavigationService
  * 
  * Usage:
  *   import { navigationService } from './services/navigation-service.js';
@@ -21,6 +24,13 @@
  *     console.log('Current window:', state.context.current);
  *   });
  */
+
+/** @typedef {import('../types.js').WindowRef} WindowRef */
+/** @typedef {import('../types.js').ModalRef} ModalRef */
+/** @typedef {import('../types.js').NavigationContext} NavigationContext */
+/** @typedef {import('../types.js').NavigationStateChangeDetail} NavigationStateChangeDetail */
+/** @typedef {import('../types.js').WindowChangeDetail} WindowChangeDetail */
+/** @typedef {import('../types.js').ModalChangeDetail} ModalChangeDetail */
 
 import { createActor } from 'https://esm.sh/xstate@5';
 import { navigationMachine, navigationEvents } from '../machines/navigation-machine.js';
@@ -43,6 +53,7 @@ class NavigationService extends EventTarget {
   /**
    * Initialize and start the navigation actor
    * Call this once on app startup
+   * @returns {void}
    */
   init() {
     if (this.#actor.status === 'active') {
@@ -56,6 +67,7 @@ class NavigationService extends EventTarget {
 
   /**
    * Get current state snapshot
+   * @returns {*} XState snapshot with context and value
    */
   getSnapshot() {
     return this.#actor.getSnapshot();
@@ -63,6 +75,7 @@ class NavigationService extends EventTarget {
 
   /**
    * Get current navigation context
+   * @returns {NavigationContext}
    */
   getContext() {
     return this.getSnapshot().context;
@@ -70,6 +83,7 @@ class NavigationService extends EventTarget {
 
   /**
    * Check if can go back
+   * @returns {boolean}
    */
   get canGoBack() {
     return this.getContext().backStack.length > 0;
@@ -77,6 +91,7 @@ class NavigationService extends EventTarget {
 
   /**
    * Check if can go forward
+   * @returns {boolean}
    */
   get canGoForward() {
     return this.getContext().forwardStack.length > 0;
@@ -84,6 +99,7 @@ class NavigationService extends EventTarget {
 
   /**
    * Get current window
+   * @returns {WindowRef|null}
    */
   get current() {
     return this.getContext().current;
@@ -91,6 +107,7 @@ class NavigationService extends EventTarget {
 
   /**
    * Get current state value (e.g., 'home', 'active', 'modalActive')
+   * @returns {string}
    */
   get stateValue() {
     return this.getSnapshot().value;
@@ -98,6 +115,8 @@ class NavigationService extends EventTarget {
 
   /**
    * Check if a specific window is currently active
+   * @param {string} windowId - Window identifier to check
+   * @returns {boolean}
    */
   isActive(windowId) {
     return this.current?.id === windowId;
@@ -105,6 +124,8 @@ class NavigationService extends EventTarget {
 
   /**
    * Check if a specific modal is currently presented
+   * @param {string} modalId - Modal identifier to check
+   * @returns {boolean}
    */
   isModalPresented(modalId) {
     const { modalStack } = this.getContext();
@@ -113,6 +134,7 @@ class NavigationService extends EventTarget {
 
   /**
    * Check if any modal is presented
+   * @returns {boolean}
    */
   get hasModals() {
     return this.getContext().modalStack.length > 0;
@@ -120,6 +142,7 @@ class NavigationService extends EventTarget {
 
   /**
    * Get the topmost modal
+   * @returns {ModalRef|null}
    */
   get topModal() {
     const { modalStack } = this.getContext();
@@ -134,7 +157,8 @@ class NavigationService extends EventTarget {
    * Push a new window onto the stack
    * @param {string} id - Window identifier
    * @param {string} [title] - Display title (defaults to id)
-   * @param {Object} [state] - Initial state for the window
+   * @param {Record<string, unknown>} [state] - Initial state for the window
+   * @returns {void}
    */
   push(id, title, state) {
     this.#actor.send(navigationEvents.push(id, title, state));
@@ -143,6 +167,7 @@ class NavigationService extends EventTarget {
 
   /**
    * Go back to previous window
+   * @returns {boolean} True if navigation occurred
    */
   back() {
     if (!this.canGoBack) {
@@ -156,6 +181,7 @@ class NavigationService extends EventTarget {
 
   /**
    * Go forward to next window (after going back)
+   * @returns {boolean} True if navigation occurred
    */
   forward() {
     if (!this.canGoForward) {
@@ -169,6 +195,7 @@ class NavigationService extends EventTarget {
 
   /**
    * Close all windows and return to home
+   * @returns {void}
    */
   close() {
     this.#actor.send(navigationEvents.close());
@@ -178,7 +205,8 @@ class NavigationService extends EventTarget {
   /**
    * Present a modal overlay
    * @param {string} id - Modal identifier
-   * @param {Object} [state] - Initial state for the modal
+   * @param {Record<string, unknown>} [state] - Initial state for the modal
+   * @returns {void}
    */
   present(id, state) {
     this.#actor.send(navigationEvents.present(id, state));
@@ -187,6 +215,7 @@ class NavigationService extends EventTarget {
 
   /**
    * Dismiss the topmost modal
+   * @returns {boolean} True if a modal was dismissed
    */
   dismiss() {
     if (!this.hasModals) {
@@ -200,7 +229,8 @@ class NavigationService extends EventTarget {
 
   /**
    * Update current window's state
-   * @param {Object} state - State to merge
+   * @param {Record<string, unknown>} state - State to merge
+   * @returns {void}
    */
   updateState(state) {
     this.#actor.send(navigationEvents.updateState(state));
@@ -209,6 +239,7 @@ class NavigationService extends EventTarget {
   /**
    * Update current window's title
    * @param {string} title - New title
+   * @returns {void}
    */
   updateTitle(title) {
     this.#actor.send(navigationEvents.updateTitle(title));
@@ -220,8 +251,8 @@ class NavigationService extends EventTarget {
 
   /**
    * Subscribe to state changes
-   * @param {Function} callback - Called with state snapshot
-   * @returns {Function} Unsubscribe function
+   * @param {(snapshot: *) => void} callback - Called with state snapshot
+   * @returns {() => void} Unsubscribe function
    */
   subscribe(callback) {
     this.#subscribers.add(callback);
@@ -249,31 +280,31 @@ class NavigationService extends EventTarget {
     
     // Dispatch custom events for different state changes
     this.dispatchEvent(new CustomEvent('state-change', {
-      detail: {
+      detail: /** @type {NavigationStateChangeDetail} */ ({
         state: snapshot.value,
         context,
         canGoBack: this.canGoBack,
         canGoForward: this.canGoForward,
-      },
+      }),
     }));
 
     // Specific events for window changes
     if (context.current) {
       this.dispatchEvent(new CustomEvent('window-change', {
-        detail: {
+        detail: /** @type {WindowChangeDetail} */ ({
           window: context.current,
           direction: context.transitionDirection,
-        },
+        }),
       }));
     }
 
     // Modal events
     if (context.modalStack.length > 0) {
       this.dispatchEvent(new CustomEvent('modal-change', {
-        detail: {
+        detail: /** @type {ModalChangeDetail} */ ({
           modal: context.modalStack[context.modalStack.length - 1],
           stack: context.modalStack,
-        },
+        }),
       }));
     }
   }
@@ -284,6 +315,7 @@ class NavigationService extends EventTarget {
 
   /**
    * Get navigation history (back stack + current + forward stack)
+   * @returns {{ back: WindowRef[], current: WindowRef|null, forward: WindowRef[] }}
    */
   getHistory() {
     const { backStack, current, forwardStack } = this.getContext();
@@ -296,6 +328,7 @@ class NavigationService extends EventTarget {
 
   /**
    * Debug: log current state
+   * @returns {void}
    */
   debug() {
     const snapshot = this.getSnapshot();
