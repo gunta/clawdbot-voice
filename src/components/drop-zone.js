@@ -28,6 +28,21 @@ export class DropZone extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     this.shadowRoot.innerHTML = `
+      <style>
+        /* Critical inline styles to prevent FOUC */
+        :host {
+          position: fixed;
+          inset: 0;
+          z-index: 9999;
+          pointer-events: none;
+        }
+        .overlay {
+          position: absolute;
+          inset: 0;
+          opacity: 0;
+          visibility: hidden;
+        }
+      </style>
       <link rel="stylesheet" href="src/components/styles/drop-zone.css">
       
       <div class="overlay">

@@ -5,9 +5,12 @@
  * Usage: <clock-modal></clock-modal>
  * Methods: open(), close(), toggle()
  * Events: 'open', 'close'
+ * 
+ * Now integrates with XState navigation service for modal management
  */
 
 import { generateDateGreeting } from '../services/date-greetings.js';
+import { navigationService, systemSounds } from '../services/index.js';
 import './handwrite-text.js';
 
 export class ClockModal extends HTMLElement {
@@ -16,6 +19,7 @@ export class ClockModal extends HTMLElement {
   #boundHandleKeydown = null;
   #idleTimer = null;
   #boundHandleMouseMove = null;
+  #unsubscribeNav = null;
   static #IDLE_TIMEOUT = 3000; // 3 seconds
 
   constructor() {
@@ -33,18 +37,85 @@ export class ClockModal extends HTMLElement {
     this.#cacheElements();
     this.#bindEvents();
     this.#updateClock();
+    this.#subscribeToNavigation();
   }
 
   disconnectedCallback() {
     this.#stopAnimation();
     this.#stopIdleTracking();
     document.removeEventListener('keydown', this.#boundHandleKeydown);
+    if (this.#unsubscribeNav) {
+      this.#unsubscribeNav();
+      this.#unsubscribeNav = null;
+    }
+  }
+
+  /**
+   * Subscribe to navigation service state changes
+   */
+  #subscribeToNavigation() {
+    this.#unsubscribeNav = navigationService.subscribe(() => {
+      const isClockModal = navigationService.isModalPresented('clock');
+      
+      if (isClockModal && !this.#isOpen) {
+        this.#showModal();
+      } else if (!isClockModal && this.#isOpen) {
+        this.#hideModal();
+      }
+    });
+  }
+
+  /**
+   * Show the modal (internal - called by navigation subscription)
+   */
+  #showModal() {
+    if (this.#isOpen) return;
+    
+    this.#isOpen = true;
+    this.setAttribute('open', '');
+    this.#startAnimation();
+    this.#startIdleTracking();
+    
+    document.addEventListener('keydown', this.#boundHandleKeydown);
+    
+    requestAnimationFrame(() => {
+      this.shadowRoot?.querySelector('.close-btn')?.focus();
+    });
+    
+    this.dispatchEvent(new CustomEvent('open'));
+    console.log('[ClockModal] Opened');
+  }
+
+  /**
+   * Hide the modal (internal - called by navigation subscription)
+   */
+  #hideModal() {
+    if (!this.#isOpen) return;
+    
+    this.#isOpen = false;
+    this.removeAttribute('open');
+    this.#stopAnimation();
+    this.#stopIdleTracking();
+    
+    document.removeEventListener('keydown', this.#boundHandleKeydown);
+    
+    this.dispatchEvent(new CustomEvent('close'));
+    console.log('[ClockModal] Closed');
   }
 
   #getTemplate() {
     return `
+      <style>
+        /* Critical inline styles to prevent FOUC */
+        :host {
+          position: fixed;
+          inset: 0;
+          opacity: 0;
+          visibility: hidden;
+        }
+      </style>
       <link rel="stylesheet" href="src/components/styles/clock-modal.css">
-      
+
       <button class="close-btn" aria-label="Close clock" type="button">
         <svg viewBox="0 0 24 24" fill="none">
           <line x1="6" y1="6" x2="18" y2="18" />
@@ -139,7 +210,7 @@ export class ClockModal extends HTMLElement {
   #handleKeydown(e) {
     if (e.key === 'Escape' && this.#isOpen) {
       e.preventDefault();
-      this.close();
+      this.close(); // Uses navigation service
     }
   }
 
@@ -258,37 +329,13 @@ export class ClockModal extends HTMLElement {
 
   // Public API
   open() {
-    if (this.#isOpen) return;
-    
-    this.#isOpen = true;
-    this.setAttribute('open', '');
-    this.#startAnimation();
-    this.#startIdleTracking();
-    
-    // Listen for Escape key
-    document.addEventListener('keydown', this.#boundHandleKeydown);
-    
-    // Focus the close button for better keyboard accessibility
-    requestAnimationFrame(() => {
-      this.shadowRoot?.querySelector('.close-btn')?.focus();
-    });
-    
-    this.dispatchEvent(new CustomEvent('open'));
-    console.log('[ClockModal] Opened');
+    systemSounds.open();
+    navigationService.present('clock');
   }
 
   close() {
-    if (!this.#isOpen) return;
-    
-    this.#isOpen = false;
-    this.removeAttribute('open');
-    this.#stopAnimation();
-    this.#stopIdleTracking();
-    
-    document.removeEventListener('keydown', this.#boundHandleKeydown);
-    
-    this.dispatchEvent(new CustomEvent('close'));
-    console.log('[ClockModal] Closed');
+    systemSounds.close();
+    navigationService.dismiss();
   }
 
   toggle() {

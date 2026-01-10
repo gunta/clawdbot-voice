@@ -25,6 +25,15 @@ export class TextEditor extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     this.shadowRoot.innerHTML = `
+      <style>
+        /* Critical inline styles to prevent FOUC */
+        :host {
+          position: fixed;
+          inset: 0;
+          opacity: 0;
+          visibility: hidden;
+        }
+      </style>
       <link rel="stylesheet" href="src/components/styles/text-editor.css">
       
       <div class="header">

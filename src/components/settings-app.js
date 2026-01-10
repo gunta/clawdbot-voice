@@ -5,15 +5,18 @@
  * Usage: <settings-app></settings-app>
  * Methods: open(), close(), toggle()
  * Events: 'open', 'close', 'config-change'
+ * 
+ * Now integrates with XState navigation service for modal management
  */
 
 import { getConfig, updateConfig, DEFAULT_CONFIG } from '../services/agentfs.js';
-import { systemSounds } from '../services/index.js';
+import { systemSounds, navigationService } from '../services/index.js';
 
 export class SettingsApp extends HTMLElement {
   #isOpen = false;
   #config = null;
   #boundHandleKeydown = null;
+  #unsubscribeNav = null;
 
   constructor() {
     super();
@@ -28,16 +31,77 @@ export class SettingsApp extends HTMLElement {
 
     this.#cacheElements();
     this.#bindEvents();
+    this.#subscribeToNavigation();
   }
 
   disconnectedCallback() {
     document.removeEventListener('keydown', this.#boundHandleKeydown);
+    if (this.#unsubscribeNav) {
+      this.#unsubscribeNav();
+      this.#unsubscribeNav = null;
+    }
+  }
+
+  /**
+   * Subscribe to navigation service state changes
+   */
+  #subscribeToNavigation() {
+    this.#unsubscribeNav = navigationService.subscribe(() => {
+      const isSettingsModal = navigationService.isModalPresented('settings');
+      
+      if (isSettingsModal && !this.#isOpen) {
+        this.#showModal();
+      } else if (!isSettingsModal && this.#isOpen) {
+        this.#hideModal();
+      }
+    });
+  }
+
+  /**
+   * Show the modal (internal - called by navigation subscription)
+   */
+  async #showModal() {
+    if (this.#isOpen) return;
+
+    this.#isOpen = true;
+    this.setAttribute('open', '');
+    
+    document.addEventListener('keydown', this.#boundHandleKeydown);
+    
+    await this.#loadConfig();
+    
+    this.dispatchEvent(new CustomEvent('open'));
+    console.log('[SettingsApp] Opened');
+  }
+
+  /**
+   * Hide the modal (internal - called by navigation subscription)
+   */
+  #hideModal() {
+    if (!this.#isOpen) return;
+
+    this.#isOpen = false;
+    this.removeAttribute('open');
+    
+    document.removeEventListener('keydown', this.#boundHandleKeydown);
+    
+    this.dispatchEvent(new CustomEvent('close'));
+    console.log('[SettingsApp] Closed');
   }
 
   #getTemplate() {
     return `
+      <style>
+        /* Critical inline styles to prevent FOUC */
+        :host {
+          position: fixed;
+          inset: 0;
+          opacity: 0;
+          visibility: hidden;
+        }
+      </style>
       <link rel="stylesheet" href="src/components/styles/settings-app.css">
-      
+
       <div class="header">
         <div class="header-left">
           <button class="back-btn" type="button" aria-label="Go back">
@@ -383,33 +447,14 @@ export class SettingsApp extends HTMLElement {
   }
 
   // Public API
-  async open() {
-    if (this.#isOpen) return;
-
-    this.#isOpen = true;
-    this.setAttribute('open', '');
-    
-    document.addEventListener('keydown', this.#boundHandleKeydown);
+  open() {
     systemSounds.open();
-    
-    // Load config when opening
-    await this.#loadConfig();
-    
-    this.dispatchEvent(new CustomEvent('open'));
-    console.log('[SettingsApp] Opened');
+    navigationService.present('settings');
   }
 
   close() {
-    if (!this.#isOpen) return;
-
-    this.#isOpen = false;
-    this.removeAttribute('open');
-    
-    document.removeEventListener('keydown', this.#boundHandleKeydown);
     systemSounds.close();
-    
-    this.dispatchEvent(new CustomEvent('close'));
-    console.log('[SettingsApp] Closed');
+    navigationService.dismiss();
   }
 
   toggle() {

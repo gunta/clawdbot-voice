@@ -1,0 +1,292 @@
+/**
+ * Navigation Transitions
+ * Smooth animations for window push/pop/close and modal present/dismiss
+ * Inspired by iOS/macOS navigation patterns
+ */
+
+/* ─────────────────────────────────────────────────────────────────────────
+   CSS Variables for transition timing
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --nav-transition-duration: 250ms;
+  --nav-transition-easing: cubic-bezier(0.32, 0.72, 0, 1); /* iOS spring-like */
+  --modal-transition-duration: 300ms;
+  --modal-transition-easing: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Window Container Base Styles
+   ───────────────────────────────────────────────────────────────────────── */
+
+.nav-window {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--bg-primary, oklch(0.12 0.01 250));
+  will-change: transform, opacity;
+}
+
+.nav-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  will-change: transform, opacity;
+}
+
+.nav-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: oklch(0 0 0 / 0.5);
+  z-index: 199;
+  will-change: opacity;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Window Push Transition (new window slides in from right)
+   ───────────────────────────────────────────────────────────────────────── */
+
+@keyframes window-push-enter {
+  from {
+    transform: translateX(100%);
+    opacity: 0.8;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes window-push-exit {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-30%);
+    opacity: 0.5;
+  }
+}
+
+.nav-window[data-transition="push-enter"] {
+  animation: window-push-enter var(--nav-transition-duration) var(--nav-transition-easing) forwards;
+}
+
+.nav-window[data-transition="push-exit"] {
+  animation: window-push-exit var(--nav-transition-duration) var(--nav-transition-easing) forwards;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Window Back Transition (current slides right, previous slides in from left)
+   ───────────────────────────────────────────────────────────────────────── */
+
+@keyframes window-back-enter {
+  from {
+    transform: translateX(-30%);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes window-back-exit {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0.8;
+  }
+}
+
+.nav-window[data-transition="back-enter"] {
+  animation: window-back-enter var(--nav-transition-duration) var(--nav-transition-easing) forwards;
+}
+
+.nav-window[data-transition="back-exit"] {
+  animation: window-back-exit var(--nav-transition-duration) var(--nav-transition-easing) forwards;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Window Forward Transition (same as push)
+   ───────────────────────────────────────────────────────────────────────── */
+
+.nav-window[data-transition="forward-enter"] {
+  animation: window-push-enter var(--nav-transition-duration) var(--nav-transition-easing) forwards;
+}
+
+.nav-window[data-transition="forward-exit"] {
+  animation: window-push-exit var(--nav-transition-duration) var(--nav-transition-easing) forwards;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Window Close Transition (fade out and scale down)
+   ───────────────────────────────────────────────────────────────────────── */
+
+@keyframes window-close {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+}
+
+.nav-window[data-transition="close"] {
+  animation: window-close 200ms ease-out forwards;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Modal Present Transition (slide up from bottom)
+   ───────────────────────────────────────────────────────────────────────── */
+
+@keyframes modal-present {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.nav-modal[data-transition="present"] {
+  animation: modal-present var(--modal-transition-duration) var(--modal-transition-easing) forwards;
+}
+
+.nav-modal-backdrop[data-transition="present"] {
+  animation: modal-backdrop-in var(--modal-transition-duration) ease-out forwards;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Modal Dismiss Transition (slide down)
+   ───────────────────────────────────────────────────────────────────────── */
+
+@keyframes modal-dismiss {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes modal-backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.nav-modal[data-transition="dismiss"] {
+  animation: modal-dismiss var(--modal-transition-duration) var(--modal-transition-easing) forwards;
+}
+
+.nav-modal-backdrop[data-transition="dismiss"] {
+  animation: modal-backdrop-out var(--modal-transition-duration) ease-out forwards;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Full-screen Modal (like clock, settings)
+   ───────────────────────────────────────────────────────────────────────── */
+
+@keyframes fullscreen-modal-present {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fullscreen-modal-dismiss {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+}
+
+.nav-modal.fullscreen[data-transition="present"] {
+  animation: fullscreen-modal-present var(--modal-transition-duration) var(--modal-transition-easing) forwards;
+}
+
+.nav-modal.fullscreen[data-transition="dismiss"] {
+  animation: fullscreen-modal-dismiss var(--modal-transition-duration) var(--modal-transition-easing) forwards;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Reduce Motion Support
+   ───────────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --nav-transition-duration: 0ms;
+    --modal-transition-duration: 0ms;
+  }
+  
+  .nav-window,
+  .nav-modal,
+  .nav-modal-backdrop {
+    animation: none !important;
+    transition: opacity 100ms ease-out !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   State Classes for Apps
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* App is visible and active */
+[data-nav-state="active"] {
+  display: block;
+  pointer-events: auto;
+}
+
+/* App is hidden (not in stack) */
+[data-nav-state="hidden"] {
+  display: none;
+  pointer-events: none;
+}
+
+/* App is in background (behind current) */
+[data-nav-state="background"] {
+  display: block;
+  pointer-events: none;
+}
+
+/* Modal is visible */
+[data-modal-state="active"] {
+  display: block;
+  pointer-events: auto;
+}
+
+/* Modal is hidden */
+[data-modal-state="hidden"] {
+  display: none;
+  pointer-events: none;
+}

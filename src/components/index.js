@@ -21,3 +21,4 @@ export { CoderApp } from './coder-app.js';
 export { DropZone } from './drop-zone.js';
 export { SettingsApp } from './settings-app.js';
 export { ImageViewerApp } from './image-viewer-app.js';
+export { AppHeader } from './app-header.js';

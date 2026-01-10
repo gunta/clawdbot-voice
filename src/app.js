@@ -1,9 +1,9 @@
 /**
  * CLAWD OS1 - Main Application
- * Orchestrates voice experience
+ * Orchestrates voice experience with XState navigation
  */
 
-import { isReturningUser, speechSynthesis, wakeLockService, chimes } from './services/index.js';
+import { isReturningUser, speechSynthesis, wakeLockService, chimes, navigationService } from './services/index.js';
 import { voiceController, speechController, keyboardController } from './controllers/index.js';
 import './components/index.js';
 
@@ -11,6 +11,7 @@ class ClawdOS1App {
   #elements = {};
 
   async init() {
+    this.#initNavigation();
     this.#cacheElements();
     this.#initControllers();
     this.#setupKeyboard();
@@ -20,6 +21,29 @@ class ClawdOS1App {
     this.#greetReturningUser();
 
     console.log('[CLAWD] OS1 initialized');
+  }
+
+  /**
+   * Initialize XState navigation service
+   */
+  #initNavigation() {
+    navigationService.init();
+    
+    // Expose navigation service for debugging
+    this.navigation = navigationService;
+    
+    // Log navigation state changes in development
+    if (location.hostname === 'localhost') {
+      navigationService.addEventListener('state-change', (e) => {
+        console.log('[Navigation]', e.detail.state, {
+          current: e.detail.context.current?.id,
+          canBack: e.detail.canGoBack,
+          canForward: e.detail.canGoForward,
+        });
+      });
+    }
+    
+    console.log('[CLAWD] Navigation service initialized');
   }
 
   #cacheElements() {

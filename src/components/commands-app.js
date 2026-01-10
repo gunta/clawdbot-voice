@@ -8,9 +8,11 @@
  * - Text processing: grep, head, tail, wc, sort, uniq, cut, tr, base64, diff
  * - Shell features: pipes (|), redirections (>, >>), environment variables
  * - Utilities: echo, printf, date, env, export, which, seq, basename, dirname, tee
+ * 
+ * Now integrates with XState navigation service for window management
  */
 
-import { agentfs, appContext, systemSounds } from '../services/index.js';
+import { agentfs, appContext, systemSounds, navigationService } from '../services/index.js';
 
 // Lazy load xterm.js
 let Terminal, FitAddon, WebLinksAddon;
@@ -20,6 +22,7 @@ export class CommandsApp extends HTMLElement {
   #fitAddon = null;
   #terminalWrapper = null;
   #closeBtn = null;
+  #backBtn = null;
   #pathDisplay = null;
   #statusBar = null;
   #boundHandleKeyDown = null;
@@ -78,6 +81,9 @@ export class CommandsApp extends HTMLElement {
   #lg2 = null;
   #gitInitialized = false;
 
+  // Navigation subscription
+  #unsubscribeNav = null;
+
   connectedCallback() {
     this.#terminalWrapper = this.shadowRoot?.querySelector('.terminal-wrapper');
     this.#closeBtn = this.shadowRoot?.querySelector('.close-btn');
@@ -89,54 +95,104 @@ export class CommandsApp extends HTMLElement {
     this.#boundHandleKeyDown = this.#handleKeyDown.bind(this);
     this.#boundHandleResize = this.#handleResize.bind(this);
     
-    // Back button handler
-    const backBtn = this.shadowRoot?.querySelector('.back-btn');
-    backBtn?.addEventListener('click', () => this.#navigateUp());
+    // Back button handler (for window navigation)
+    this.#backBtn = this.shadowRoot?.querySelector('.back-btn');
+    this.#backBtn?.addEventListener('click', () => this.#handleBackClick());
+    // Hide back button initially (subscription will show if needed)
+    if (this.#backBtn) {
+      this.#backBtn.style.display = 'none';
+    }
+    
+    // Subscribe to navigation state
+    this.#subscribeToNavigation();
   }
 
   disconnectedCallback() {
     document.removeEventListener('keydown', this.#boundHandleKeyDown);
     window.removeEventListener('resize', this.#boundHandleResize);
     this.#terminal?.dispose();
+    if (this.#unsubscribeNav) {
+      this.#unsubscribeNav();
+      this.#unsubscribeNav = null;
+    }
   }
 
   /**
-   * Open the commands app
+   * Subscribe to navigation service state changes
    */
-  async open() {
+  #subscribeToNavigation() {
+    this.#unsubscribeNav = navigationService.subscribe((snapshot) => {
+      const { current, backStack } = snapshot.context;
+      const isCommandsActive = current?.id === 'commands';
+
+      // Hide/show back button based on navigation stack
+      if (this.#backBtn) {
+        this.#backBtn.style.display = backStack.length === 0 ? 'none' : '';
+      }
+
+      if (isCommandsActive && !this.hasAttribute('open')) {
+        this.#showApp();
+      } else if (!isCommandsActive && this.hasAttribute('open')) {
+        this.#hideApp();
+      }
+    });
+  }
+
+  /**
+   * Handle back button click - use window navigation
+   */
+  #handleBackClick() {
+    if (navigationService.canGoBack) {
+      systemSounds.back();
+      navigationService.back();
+    }
+  }
+
+  /**
+   * Show the app (internal - called by navigation subscription)
+   */
+  async #showApp() {
     this.setAttribute('open', '');
     document.addEventListener('keydown', this.#boundHandleKeyDown);
     window.addEventListener('resize', this.#boundHandleResize);
-    
-    // Play open sound
-    systemSounds.open();
-    
-    // Initialize terminal if not already
+
     if (!this.#terminal) {
       await this.#initTerminal();
     }
-    
-    // Focus terminal
+
     requestAnimationFrame(() => {
       this.#terminal?.focus();
       this.#fitAddon?.fit();
     });
-    
+
     this.dispatchEvent(new CustomEvent('commands-app-open', { bubbles: true }));
   }
 
   /**
-   * Close the commands app
+   * Hide the app (internal - called by navigation subscription)
    */
-  close() {
+  #hideApp() {
     this.removeAttribute('open');
     document.removeEventListener('keydown', this.#boundHandleKeyDown);
     window.removeEventListener('resize', this.#boundHandleResize);
-    
-    // Play close sound
-    systemSounds.close();
-    
+
     this.dispatchEvent(new CustomEvent('commands-app-close', { bubbles: true }));
+  }
+
+  /**
+   * Open the commands app (public API - uses navigation service)
+   */
+  open() {
+    systemSounds.open();
+    navigationService.push('commands', 'Terminal');
+  }
+
+  /**
+   * Close the commands app (public API - uses navigation service)
+   */
+  close() {
+    systemSounds.close();
+    navigationService.close();
   }
 
   /**

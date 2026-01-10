@@ -2,9 +2,11 @@
  * Coder App Component
  * Monaco-powered code editor with Her aesthetic
  * Uses Monaco Editor from CDN for syntax highlighting and code editing
+ * 
+ * Now integrates with XState navigation service for window management
  */
 
-import { agentfs, systemSounds } from '../services/index.js';
+import { agentfs, systemSounds, navigationService } from '../services/index.js';
 
 // Monaco CDN URL
 const MONACO_CDN = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1';
@@ -22,6 +24,7 @@ export class CoderApp extends HTMLElement {
   #positionElement = null;
   #boundHandleKeyDown = null;
   #resizeObserver = null;
+  #unsubscribeNav = null;
   
   // State
   #filePath = null;
@@ -34,13 +37,27 @@ export class CoderApp extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     this.shadowRoot.innerHTML = `
+      <style>
+        /* Critical inline styles to prevent FOUC */
+        :host {
+          position: fixed;
+          inset: 0;
+          opacity: 0;
+          visibility: hidden;
+        }
+      </style>
       <link rel="stylesheet" href="src/components/styles/coder-app.css">
       
       <div class="header">
         <div class="header-left">
-          <button class="back-btn" type="button" aria-label="Back to Files">
+          <button class="back-btn" type="button" aria-label="Go back">
             <svg viewBox="0 0 24 24" fill="none">
-              <path d="M19 12H5M5 12L12 19M5 12L12 5" />
+              <path d="M15 18L9 12L15 6" />
+            </svg>
+          </button>
+          <button class="forward-btn" type="button" aria-label="Go forward" disabled>
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M9 18L15 12L9 6" />
             </svg>
           </button>
         </div>
@@ -91,19 +108,141 @@ export class CoderApp extends HTMLElement {
     this.#languageElement = this.shadowRoot.querySelector('.language-info');
     this.#positionElement = this.shadowRoot.querySelector('.cursor-position');
     
-    // Event handlers
+    // Forward button
+    const forwardBtn = this.shadowRoot.querySelector('.forward-btn');
+    
+    // Event handlers - navigation buttons use navigation service
     this.#backBtn?.addEventListener('click', () => this.back());
+    forwardBtn?.addEventListener('click', () => navigationService.forward());
     this.#closeBtn?.addEventListener('click', () => this.close());
     this.#saveBtn?.addEventListener('click', () => this.save());
     
+    // Hide navigation buttons initially (subscription will show if needed)
+    if (this.#backBtn) {
+      this.#backBtn.style.display = 'none';
+    }
+    if (forwardBtn) {
+      forwardBtn.style.display = 'none';
+    }
+    
     // Keyboard
     this.#boundHandleKeyDown = this.#handleKeyDown.bind(this);
+    
+    // Subscribe to navigation state changes
+    this.#subscribeToNavigation();
   }
 
   disconnectedCallback() {
     document.removeEventListener('keydown', this.#boundHandleKeyDown);
     this.#resizeObserver?.disconnect();
     this.#editor?.dispose();
+    if (this.#unsubscribeNav) {
+      this.#unsubscribeNav();
+      this.#unsubscribeNav = null;
+    }
+  }
+
+  /**
+   * Subscribe to navigation service state changes
+   */
+  #subscribeToNavigation() {
+    this.#unsubscribeNav = navigationService.subscribe((snapshot) => {
+      const { current, backStack, forwardStack } = snapshot.context;
+      const isCoderActive = current?.id === 'coder';
+      
+      // Hide/show forward button based on availability
+      const forwardBtn = this.shadowRoot.querySelector('.forward-btn');
+      if (forwardBtn) {
+        forwardBtn.style.display = forwardStack.length === 0 ? 'none' : '';
+      }
+      
+      // Hide/show back button based on availability
+      if (this.#backBtn) {
+        this.#backBtn.style.display = backStack.length === 0 ? 'none' : '';
+      }
+      
+      if (isCoderActive && !this.hasAttribute('open')) {
+        // Coder was pushed - show the app
+        const path = current.state?.path;
+        this.#openWithPath(path);
+      } else if (!isCoderActive && this.hasAttribute('open')) {
+        // Coder is no longer active - hide the app
+        this.#hideApp();
+      }
+    });
+  }
+
+  /**
+   * Internal open with file path (called by navigation subscription)
+   */
+  async #openWithPath(path) {
+    this.#filePath = path || null;
+    this.setAttribute('open', '');
+    document.addEventListener('keydown', this.#boundHandleKeyDown);
+    
+    // Show loading
+    this.#showLoading(true);
+    
+    // Update title
+    const fileName = path ? path.split('/').pop() : 'Untitled';
+    this.#titleElement.textContent = fileName;
+    
+    // Detect language from extension
+    const language = path ? this.#getLanguageFromPath(path) : 'plaintext';
+    this.#updateLanguageInfo(language);
+    
+    // Wait for element to be visible before initializing Monaco
+    await this.#waitForVisibility();
+    
+    try {
+      const editor = await this.#getEditor();
+      
+      const editorContainer = this.shadowRoot.querySelector('.editor-container');
+      const rect = editorContainer.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        editor.layout({ width: rect.width, height: rect.height });
+      }
+      
+      if (path) {
+        await this.#loadFile();
+      }
+      
+      const model = editor.getModel();
+      if (model && this.#monaco) {
+        this.#monaco.editor.setModelLanguage(model, language);
+      }
+      
+      editor.focus();
+      this.#showLoading(false);
+    } catch (err) {
+      console.error('[CoderApp] Failed to open:', err);
+      this.#setStatus('Failed to load');
+      this.#showLoading(false);
+    }
+    
+    this.dispatchEvent(new CustomEvent('coder-open', { 
+      bubbles: true, 
+      detail: { path } 
+    }));
+  }
+
+  /**
+   * Hide the coder app (internal - called by navigation subscription)
+   */
+  #hideApp() {
+    this.removeAttribute('open');
+    document.removeEventListener('keydown', this.#boundHandleKeyDown);
+    
+    // Reset state
+    this.#filePath = null;
+    this.#originalContent = '';
+    this.#isDirty = false;
+    
+    if (this.#editor) {
+      this.#editor.setValue('');
+    }
+    
+    this.dispatchEvent(new CustomEvent('coder-close', { bubbles: true }));
   }
 
   /**
@@ -262,66 +401,13 @@ export class CoderApp extends HTMLElement {
   }
 
   /**
-   * Open a file in the editor
+   * Open a file in the editor (public API - uses navigation service)
    * @param {string} [path] - File path (optional)
    */
   async open(path) {
-    this.#filePath = path || null;
-    this.setAttribute('open', '');
-    document.addEventListener('keydown', this.#boundHandleKeyDown);
-    
-    // Show loading
-    this.#showLoading(true);
-    
-    // Play open sound
     systemSounds.open();
-    
-    // Update title
     const fileName = path ? path.split('/').pop() : 'Untitled';
-    this.#titleElement.textContent = fileName;
-    
-    // Detect language from extension
-    const language = path ? this.#getLanguageFromPath(path) : 'plaintext';
-    this.#updateLanguageInfo(language);
-    
-    // Wait for element to be visible before initializing Monaco
-    // This ensures the container has proper dimensions
-    await this.#waitForVisibility();
-    
-    try {
-      // Ensure editor is created (now that container is visible)
-      const editor = await this.#getEditor();
-      
-      // Force initial layout with explicit dimensions
-      const editorContainer = this.shadowRoot.querySelector('.editor-container');
-      const rect = editorContainer.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        editor.layout({ width: rect.width, height: rect.height });
-      }
-      
-      // Load content (only if path provided)
-      if (path) {
-        await this.#loadFile();
-      }
-      
-      // Set language
-      const model = editor.getModel();
-      if (model && this.#monaco) {
-        this.#monaco.editor.setModelLanguage(model, language);
-      }
-      
-      editor.focus();
-      this.#showLoading(false);
-    } catch (err) {
-      console.error('[CoderApp] Failed to open:', err);
-      this.#setStatus('Failed to load');
-      this.#showLoading(false);
-    }
-    
-    this.dispatchEvent(new CustomEvent('coder-open', { 
-      bubbles: true, 
-      detail: { path } 
-    }));
+    navigationService.push('coder', fileName, { path });
   }
   
   /**
@@ -371,60 +457,19 @@ export class CoderApp extends HTMLElement {
   }
 
   /**
-   * Close the editor
+   * Close the editor (public API - uses navigation service)
    */
   close() {
-    this.removeAttribute('open');
-    document.removeEventListener('keydown', this.#boundHandleKeyDown);
-    
-    // Reset state
-    this.#filePath = null;
-    this.#originalContent = '';
-    this.#isDirty = false;
-    
-    if (this.#editor) {
-      this.#editor.setValue('');
-    }
-    
-    // Play close sound
     systemSounds.close();
-    
-    this.dispatchEvent(new CustomEvent('coder-close', { bubbles: true }));
+    navigationService.close();
   }
 
   /**
-   * Go back to Files app
+   * Go back in navigation history (public API - uses navigation service)
    */
   back() {
-    // Close editor first
-    this.removeAttribute('open');
-    document.removeEventListener('keydown', this.#boundHandleKeyDown);
-    
-    // Get the directory of the current file
-    const directory = this.#filePath 
-      ? this.#filePath.substring(0, this.#filePath.lastIndexOf('/')) || '/'
-      : '/';
-    
-    // Reset state
-    this.#filePath = null;
-    this.#originalContent = '';
-    this.#isDirty = false;
-    
-    if (this.#editor) {
-      this.#editor.setValue('');
-    }
-    
-    // Play back sound
     systemSounds.back();
-    
-    // Open Files app at the directory
-    const filesApp = document.getElementById('filesApp');
-    if (filesApp) {
-      filesApp.navigateTo(directory);
-      filesApp.open();
-    }
-    
-    this.dispatchEvent(new CustomEvent('coder-back', { bubbles: true }));
+    navigationService.back();
   }
 
   /**

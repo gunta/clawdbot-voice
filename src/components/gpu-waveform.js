@@ -126,6 +126,8 @@ export class GpuWaveform extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
+    // Critical inline styles to prevent FOUC
+    this.shadowRoot.innerHTML = `<style>:host{opacity:0;visibility:hidden}</style>`;
   }
 
   async connectedCallback() {

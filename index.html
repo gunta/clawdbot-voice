@@ -192,6 +192,7 @@
   <!-- Files App - Spatial File Browser -->
   <files-app id="filesApp">
     <template shadowrootmode="open">
+      <style>:host{position:fixed;inset:0;opacity:0;visibility:hidden}</style>
       <link rel="stylesheet" href="src/components/styles/files-app.css">
       
       <div class="header">
@@ -267,6 +268,7 @@
   <!-- Commands App - Terminal Interface -->
   <commands-app id="commandsApp">
     <template shadowrootmode="open">
+      <style>:host{position:fixed;inset:0;opacity:0;visibility:hidden}</style>
       <link rel="stylesheet" href="src/components/styles/commands-app.css">
       
       <div class="header">
@@ -309,8 +311,9 @@
   <!-- Launchpad - App Launcher -->
   <launchpad-view id="launchpad">
     <template shadowrootmode="open">
+      <style>:host{position:fixed;inset:0;opacity:0;visibility:hidden}</style>
       <link rel="stylesheet" href="src/components/styles/launchpad-view.css">
-      
+
       <div class="header">
         <span class="title">apps</span>
         <button class="close-btn" type="button" aria-label="Close launchpad">
@@ -320,7 +323,36 @@
           </svg>
         </button>
       </div>
-      
+
+      <!-- Command Palette Search -->
+      <div class="command-palette">
+        <div class="command-input-wrapper">
+          <svg class="command-icon" viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="text"
+            class="command-input"
+            placeholder="Search apps, run commands, find files..."
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+          />
+          <button type="button" class="command-clear" aria-label="Clear search">
+            <svg viewBox="0 0 24 24" fill="none">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+          <span class="command-shortcut">⌘K</span>
+        </div>
+      </div>
+
+      <!-- Search Results -->
+      <div class="search-results" style="display: none;"></div>
+
       <div class="apps-grid">
         <!-- Files App -->
         <div class="app-card" data-app="files" tabindex="0" role="button" aria-label="Open Files">
@@ -399,6 +431,7 @@
   <!-- Coder App - Monaco-powered code editor -->
   <coder-app id="coderApp">
     <template shadowrootmode="open">
+      <style>:host{position:fixed;inset:0;opacity:0;visibility:hidden}</style>
       <link rel="stylesheet" href="src/components/styles/coder-app.css">
       
       <div class="header">
@@ -452,6 +485,7 @@
   <!-- Image Viewer App - Elegant Image Gallery -->
   <image-viewer-app id="imageViewerApp">
     <template shadowrootmode="open">
+      <style>:host{position:fixed;inset:0;opacity:0;visibility:hidden}</style>
       <link rel="stylesheet" href="src/components/styles/image-viewer-app.css">
       
       <div class="header">
@@ -522,6 +556,7 @@
   <!-- Clock Modal - Bold, simple analog clock -->
   <clock-modal id="clockModal">
     <template shadowrootmode="open">
+      <style>:host{position:fixed;inset:0;opacity:0;visibility:hidden}</style>
       <link rel="stylesheet" href="src/components/styles/clock-modal.css">
       
       <button class="close-btn" type="button" aria-label="Close clock">

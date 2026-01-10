@@ -1,9 +1,11 @@
 /**
  * Image Viewer App Component
  * Elegant gallery for viewing image files with zoom and navigation
+ * 
+ * Now integrates with XState navigation service for window management
  */
 
-import { agentfs, appContext, systemSounds } from '../services/index.js';
+import { agentfs, appContext, systemSounds, navigationService } from '../services/index.js';
 
 export class ImageViewerApp extends HTMLElement {
   // DOM Elements
@@ -50,6 +52,9 @@ export class ImageViewerApp extends HTMLElement {
     return ext && ImageViewerApp.imageExtensions.has(ext);
   }
 
+  // Navigation subscription
+  #unsubscribeNav = null;
+
   connectedCallback() {
     this.#closeBtn = this.shadowRoot?.querySelector('.close-btn');
     this.#prevBtn = this.shadowRoot?.querySelector('.prev-btn');
@@ -90,63 +95,88 @@ export class ImageViewerApp extends HTMLElement {
     
     // Double-click to zoom
     this.#imageContainer?.addEventListener('dblclick', (e) => this.#handleDoubleClick(e));
+    
+    // Subscribe to navigation state
+    this.#subscribeToNavigation();
   }
 
   disconnectedCallback() {
     document.removeEventListener('keydown', this.#boundHandleKeyDown);
+    if (this.#unsubscribeNav) {
+      this.#unsubscribeNav();
+      this.#unsubscribeNav = null;
+    }
   }
 
   /**
-   * Open the image viewer with a specific image
-   * @param {string} [path] - Path to the image file (optional - shows empty state if not provided)
+   * Subscribe to navigation service state changes
    */
-  async open(path) {
+  #subscribeToNavigation() {
+    this.#unsubscribeNav = navigationService.subscribe((snapshot) => {
+      const { current } = snapshot.context;
+      const isViewerActive = current?.id === 'image-viewer';
+      
+      if (isViewerActive && !this.hasAttribute('open')) {
+        const path = current.state?.path;
+        this.#showApp(path);
+      } else if (!isViewerActive && this.hasAttribute('open')) {
+        this.#hideApp();
+      }
+    });
+  }
+
+  /**
+   * Show the app (internal - called by navigation subscription)
+   */
+  async #showApp(path) {
     this.setAttribute('open', '');
     document.addEventListener('keydown', this.#boundHandleKeyDown);
-    
-    // Play open sound
-    systemSounds.open();
-    
+
     this.#zoom = 1;
     this.#imageOffset = { x: 0, y: 0 };
-    
+
     if (path) {
       this.#currentPath = path;
-      
-      // Load sibling images for navigation
       await this.#loadImageList();
-      
-      // Load the image
       await this.#loadImage(path);
-      
       appContext.recordAction('image-viewer', 'open', { path });
     } else {
-      // No path provided - show empty state
-      this.#currentPath = '';
-      this.#imageList = [];
       this.#showEmptyState();
-      appContext.recordAction('image-viewer', 'open', { path: null });
     }
-    
-    this.dispatchEvent(new CustomEvent('image-viewer-open', { bubbles: true }));
+
+    this.dispatchEvent(new CustomEvent('image-viewer-open', { bubbles: true, detail: { path } }));
   }
 
   /**
-   * Close the image viewer
+   * Hide the app (internal - called by navigation subscription)
    */
-  close() {
+  #hideApp() {
     this.removeAttribute('open');
     document.removeEventListener('keydown', this.#boundHandleKeyDown);
-    
-    // Clear image src to free memory
+
     if (this.#imageElement) {
       this.#imageElement.src = '';
     }
-    
-    // Play close sound
-    systemSounds.close();
-    
+
     this.dispatchEvent(new CustomEvent('image-viewer-close', { bubbles: true }));
+  }
+
+  /**
+   * Open the image viewer with a specific image (public API - uses navigation service)
+   * @param {string} [path] - Path to the image file
+   */
+  open(path) {
+    systemSounds.open();
+    const fileName = path ? path.split('/').pop() : 'Image';
+    navigationService.push('image-viewer', fileName, { path });
+  }
+
+  /**
+   * Close the image viewer (public API - uses navigation service)
+   */
+  close() {
+    systemSounds.close();
+    navigationService.close();
   }
 
   /**

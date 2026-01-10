@@ -20,3 +20,6 @@ export * as agentfs from './agentfs.js';
 
 // App Context - Inter-app state and communication
 export { appContext } from './app-context.js';
+
+// Navigation Service - XState-powered window/modal navigation
+export { navigationService } from './navigation-service.js';

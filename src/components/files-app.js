@@ -2,20 +2,24 @@
  * Files App Component
  * Novel spatial file browser with temporal and connected paradigms
  * Behavior only - template is in HTML via Declarative Shadow DOM
+ * 
+ * Now integrates with XState navigation service for window management
  */
 
-import { agentfs, appContext, systemSounds } from '../services/index.js';
+import { agentfs, appContext, systemSounds, navigationService } from '../services/index.js';
 
 export class FilesApp extends HTMLElement {
   #canvas = null;
   #closeBtn = null;
   #backBtn = null;
   #pathElement = null;
+  #titleElement = null;
   #timeScrubber = null;
   #zoomIndicator = null;
   #contextMenu = null;
   #boundHandleKeyDown = null;
   #boundHandleContextMenuClose = null;
+  #unsubscribeNav = null;
   
   // State
   #currentPath = '/';
@@ -33,14 +37,20 @@ export class FilesApp extends HTMLElement {
     this.#closeBtn = this.shadowRoot?.querySelector('.close-btn');
     this.#backBtn = this.shadowRoot?.querySelector('.back-btn');
     this.#pathElement = this.shadowRoot?.querySelector('.path');
+    this.#titleElement = this.shadowRoot?.querySelector('.title');
     this.#timeScrubber = this.shadowRoot?.querySelector('.time-slider');
     this.#zoomIndicator = this.shadowRoot?.querySelector('.zoom-indicator');
     this.#contextMenu = this.shadowRoot?.querySelector('.context-menu');
     
-    // Event handlers
+    // Event handlers - close button uses navigation service
     this.#closeBtn?.addEventListener('click', () => this.close());
-    this.#backBtn?.addEventListener('click', () => this.#navigateUp());
-    
+    // Back button uses window navigation (navigation service)
+    this.#backBtn?.addEventListener('click', () => this.#handleBackClick());
+    // Hide back button initially (subscription will show if needed)
+    if (this.#backBtn) {
+      this.#backBtn.style.display = 'none';
+    }
+
     // Keyboard
     this.#boundHandleKeyDown = this.#handleKeyDown.bind(this);
     
@@ -63,24 +73,62 @@ export class FilesApp extends HTMLElement {
       container.addEventListener('touchend', () => this.#handleTouchEnd());
     }
     
-    // Note: Removed "click outside to close" - was causing issues with shadow DOM event retargeting
-    // Users can close via the close button or Escape key
+    // Subscribe to navigation state changes
+    this.#subscribeToNavigation();
   }
 
   disconnectedCallback() {
     document.removeEventListener('keydown', this.#boundHandleKeyDown);
     this.shadowRoot?.removeEventListener('click', this.#boundHandleContextMenuClose);
+    if (this.#unsubscribeNav) {
+      this.#unsubscribeNav();
+      this.#unsubscribeNav = null;
+    }
   }
 
   /**
-   * Open the files app
+   * Subscribe to navigation service state changes
    */
-  async open() {
+  #subscribeToNavigation() {
+    this.#unsubscribeNav = navigationService.subscribe((snapshot) => {
+      const { current, backStack } = snapshot.context;
+      const isFilesActive = current?.id === 'files';
+      
+      // Hide/show back button based on navigation stack
+      if (this.#backBtn) {
+        this.#backBtn.style.display = backStack.length === 0 ? 'none' : '';
+      }
+      
+      if (isFilesActive && !this.hasAttribute('open')) {
+        // Files was pushed - show the app
+        this.#showApp();
+        // Restore state if available
+        if (current.state?.path) {
+          this.#currentPath = current.state.path;
+        }
+      } else if (!isFilesActive && this.hasAttribute('open')) {
+        // Files is no longer active - hide the app
+        this.#hideApp();
+      }
+    });
+  }
+
+  /**
+   * Handle back button click - use window navigation
+   */
+  #handleBackClick() {
+    if (navigationService.canGoBack) {
+      systemSounds.back();
+      navigationService.back();
+    }
+  }
+
+  /**
+   * Show the files app (internal - called by navigation subscription)
+   */
+  async #showApp() {
     this.setAttribute('open', '');
     document.addEventListener('keydown', this.#boundHandleKeyDown);
-    
-    // Play open sound
-    systemSounds.open();
     
     // Load files
     await this.#loadFiles();
@@ -89,16 +137,31 @@ export class FilesApp extends HTMLElement {
   }
 
   /**
-   * Close the files app
+   * Hide the files app (internal - called by navigation subscription)
    */
-  close() {
+  #hideApp() {
     this.removeAttribute('open');
     document.removeEventListener('keydown', this.#boundHandleKeyDown);
     
-    // Play close sound
-    systemSounds.close();
-    
     this.dispatchEvent(new CustomEvent('files-app-close', { bubbles: true }));
+  }
+
+  /**
+   * Open the files app (public API - uses navigation service)
+   */
+  async open() {
+    systemSounds.open();
+    navigationService.push('files', 'Files', { path: this.#currentPath });
+  }
+
+  /**
+   * Close the files app (public API - uses navigation service)
+   */
+  close() {
+    systemSounds.close();
+    // Save current state before closing
+    navigationService.updateState({ path: this.#currentPath });
+    navigationService.close();
   }
 
   /**
@@ -192,6 +255,7 @@ export class FilesApp extends HTMLElement {
       
       this.#render();
       this.#updatePath();
+      this.#updateWindowTitle();
     } catch (err) {
       console.error('[FilesApp] Failed to load files:', err);
       this.#files = [];
@@ -563,7 +627,7 @@ export class FilesApp extends HTMLElement {
    */
   #handleKeyDown(e) {
     if (e.key === 'Escape') {
-      // Close context menu first, then close app
+      // Close context menu first, then close app via navigation service
       if (this.#contextMenu?.classList.contains('visible')) {
         this.#hideContextMenu();
       } else {
@@ -573,6 +637,23 @@ export class FilesApp extends HTMLElement {
       e.preventDefault();
       this.#navigateUp();
     }
+  }
+
+  /**
+   * Update the window title based on current path
+   */
+  #updateWindowTitle() {
+    const pathName = this.#currentPath === '/' 
+      ? 'Files' 
+      : this.#currentPath.split('/').filter(Boolean).pop() || 'Files';
+    
+    // Update local title element
+    if (this.#titleElement) {
+      this.#titleElement.textContent = pathName.toLowerCase();
+    }
+    
+    // Update navigation service title
+    navigationService.updateTitle(pathName);
   }
 
   /**
