@@ -9,58 +9,6 @@ import { createShadowComponent } from '../lib/shadow-component.js';
 import { ErrorBoundary } from '../lib/error-boundary.js';
 import { audioAnalyzer } from '../services/audio-analyzer.js';
 
-const styles = `
-  /* Wave Form Component Styles */
-
-  :host {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    height: var(--waveform-height, 40px);
-    opacity: 0.3;
-    transition: opacity 0.4s ease;
-    contain: content;
-  }
-
-  :host([active]) {
-    opacity: 1 !important;
-    animation: none;
-  }
-
-  /* Initial fade-in animation (only when not active) */
-  :host(:not([active])) {
-    animation: fade-in 1s ease forwards;
-    animation-delay: 0.5s;
-    opacity: 0;
-  }
-
-  .bar {
-    width: 3px;
-    height: var(--wave-bar-height, 15px);
-    background: var(--color-white, #FFFFFF);
-    border-radius: 2px;
-    transition: height 0.05s ease-out;
-    will-change: height;
-  }
-
-  @keyframes fade-in {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 0.3; transform: translateY(0); }
-  }
-
-  @keyframes wave-move {
-    0%, 100% { height: var(--wave-bar-height, 15px); }
-    50% { height: var(--wave-bar-height-active, 35px); }
-  }
-
-  @media (max-width: 700px) {
-    :host {
-      height: 30px;
-    }
-  }
-`;
-
 function WaveForm({ host, bars = 7 }) {
   const isActive = useSignal(false);
   const barCount = parseInt(bars) || 7;
@@ -141,6 +89,6 @@ function WaveForm({ host, bars = 7 }) {
 
 export default createShadowComponent(WaveForm, {
   tag: 'wave-form',
-  styles,
+  styleUrl: './src/components/styles/wave-form.css',
   observedAttributes: ['active', 'bars'],
 });

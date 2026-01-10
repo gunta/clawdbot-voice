@@ -116,93 +116,6 @@ const SHADER = /* wgsl */ `
   }
 `;
 
-const styles = `
-  :host {
-    display: block;
-    contain: content;
-    width: 100%;
-    max-width: 280px;
-    margin: 0 auto;
-    height: var(--gpu-waveform-height, 40px);
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(5px) scale(0.95);
-    transition: opacity 0.5s ease, visibility 0.5s ease, transform 0.5s ease;
-    pointer-events: none;
-    /* Enable HDR rendering */
-    dynamic-range-limit: no-limit;
-  }
-
-  /* Fade in when active (Her or Clawd speaking) */
-  :host([active]) {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0) scale(1);
-  }
-
-  canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-    border-radius: 4px;
-  }
-
-  /* HDR glow effect around canvas */
-  :host([hdr]) canvas {
-    filter: drop-shadow(0 0 8px oklch(1.2 0 0 / 0.3));
-  }
-
-  .fallback {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: oklch(1 0 0 / 0.3);
-    font-family: var(--font-body, 'Cormorant Garamond', serif);
-    font-size: 0.8rem;
-    font-style: italic;
-  }
-
-  /* Responsive sizing */
-  @media (max-width: 700px) {
-    :host {
-      --gpu-waveform-height: 50px;
-      max-width: 300px;
-    }
-  }
-
-  @media (max-width: 400px) {
-    :host {
-      --gpu-waveform-height: 40px;
-      max-width: 250px;
-    }
-  }
-
-  /* Large screens */
-  @media (min-width: 1200px) {
-    :host {
-      --gpu-waveform-height: 80px;
-      max-width: 500px;
-    }
-  }
-
-  /* HDR Display Enhancement */
-  @media (dynamic-range: high) {
-    :host([hdr]) canvas {
-      filter: drop-shadow(0 0 15px oklch(1.4 0 0 / 0.4));
-    }
-  }
-
-  /* Reduced motion */
-  @media (prefers-reduced-motion: reduce) {
-    :host {
-      transition: none;
-      opacity: 0.8;
-    }
-  }
-`;
-
 function GpuWaveform({ host }) {
   const canvasRef = useRef(null);
   const isActive = useSignal(false);
@@ -541,5 +454,5 @@ function GpuWaveform({ host }) {
 
 export default createShadowComponent(GpuWaveform, {
   tag: 'gpu-waveform',
-  styles,
+  styleUrl: './src/components/styles/gpu-waveform.css',
 });

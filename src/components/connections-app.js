@@ -12,6 +12,15 @@ import { ErrorBoundary } from '../lib/error-boundary.js';
 import { navigate, canGoBack } from '../services/navigation-signals.js';
 import { systemSounds, navigationService, agentfs } from '../services/index.js';
 
+// JSZip for proper ZIP file creation (loaded dynamically)
+let JSZip = null;
+const loadJSZip = async () => {
+  if (JSZip) return JSZip;
+  const module = await import('https://esm.sh/jszip@3.10.1');
+  JSZip = module.default;
+  return JSZip;
+};
+
 const styles = `
 /**
  * Connections App - Data Sync & Backup Interface
@@ -311,7 +320,20 @@ const styles = `
   font-family: var(--font-body, 'Cormorant Garamond', serif);
   font-size: 0.85rem;
   color: oklch(1 0 0 / 0.6);
-  line-height: 1.5;
+  line-height: 1.6;
+}
+
+.info-box-text strong {
+  color: oklch(1 0 0 / 0.8);
+}
+
+.info-box-text code {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.75rem;
+  background: oklch(1 0 0 / 0.1);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  color: oklch(1 0 0 / 0.8);
 }
 
 /* Footer */
@@ -368,6 +390,142 @@ const styles = `
 `;
 
 /**
+ * CRC-32 lookup table (pre-computed for performance)
+ */
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let crc = i;
+    for (let j = 0; j < 8; j++) {
+      crc = (crc & 1) ? (0xEDB88320 ^ (crc >>> 1)) : (crc >>> 1);
+    }
+    table[i] = crc >>> 0;
+  }
+  return table;
+})();
+
+/**
+ * Calculate CRC-32 checksum
+ */
+function crc32(data) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < data.length; i++) {
+    crc = CRC32_TABLE[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+/**
+ * Convert Date to DOS format for ZIP
+ */
+function dateToDos(date) {
+  const time = ((date.getHours() & 0x1F) << 11) |
+               ((date.getMinutes() & 0x3F) << 5) |
+               ((date.getSeconds() >> 1) & 0x1F);
+  const dosDate = (((date.getFullYear() - 1980) & 0x7F) << 9) |
+                  (((date.getMonth() + 1) & 0x0F) << 5) |
+                  (date.getDate() & 0x1F);
+  return { time, date: dosDate };
+}
+
+/**
+ * Create a ZIP file (fast, no compression)
+ */
+function createZipFast(files) {
+  const textEncoder = new TextEncoder();
+  const chunks = [];
+  const centralDirectory = [];
+  let offset = 0;
+  const now = dateToDos(new Date());
+
+  for (const file of files) {
+    const cleanPath = file.path.replace(/\\/g, '/').replace(/^\/+/, '');
+    const pathBytes = textEncoder.encode(cleanPath);
+    const content = file.content;
+    const fileCrc = crc32(content);
+    
+    // Local file header
+    const localHeader = new Uint8Array(30 + pathBytes.length);
+    const view = new DataView(localHeader.buffer);
+    
+    view.setUint32(0, 0x04034b50, true);
+    view.setUint16(4, 10, true);
+    view.setUint16(6, 0, true);
+    view.setUint16(8, 0, true);
+    view.setUint16(10, now.time, true);
+    view.setUint16(12, now.date, true);
+    view.setUint32(14, fileCrc, true);
+    view.setUint32(18, content.length, true);
+    view.setUint32(22, content.length, true);
+    view.setUint16(26, pathBytes.length, true);
+    view.setUint16(28, 0, true);
+    localHeader.set(pathBytes, 30);
+
+    chunks.push(localHeader);
+    chunks.push(content);
+
+    // Central directory entry
+    const centralEntry = new Uint8Array(46 + pathBytes.length);
+    const centralView = new DataView(centralEntry.buffer);
+    
+    centralView.setUint32(0, 0x02014b50, true);
+    centralView.setUint16(4, 0x031E, true);
+    centralView.setUint16(6, 10, true);
+    centralView.setUint16(8, 0, true);
+    centralView.setUint16(10, 0, true);
+    centralView.setUint16(12, now.time, true);
+    centralView.setUint16(14, now.date, true);
+    centralView.setUint32(16, fileCrc, true);
+    centralView.setUint32(20, content.length, true);
+    centralView.setUint32(24, content.length, true);
+    centralView.setUint16(28, pathBytes.length, true);
+    centralView.setUint16(30, 0, true);
+    centralView.setUint16(32, 0, true);
+    centralView.setUint16(34, 0, true);
+    centralView.setUint16(36, 0, true);
+    centralView.setUint32(38, 0, true);
+    centralView.setUint32(42, offset, true);
+    centralEntry.set(pathBytes, 46);
+
+    centralDirectory.push(centralEntry);
+    offset += localHeader.length + content.length;
+  }
+
+  const centralDirOffset = offset;
+  let centralDirSize = 0;
+  
+  for (const entry of centralDirectory) {
+    chunks.push(entry);
+    centralDirSize += entry.length;
+  }
+
+  const eocd = new Uint8Array(22);
+  const eocdView = new DataView(eocd.buffer);
+  
+  eocdView.setUint32(0, 0x06054b50, true);
+  eocdView.setUint16(4, 0, true);
+  eocdView.setUint16(6, 0, true);
+  eocdView.setUint16(8, files.length, true);
+  eocdView.setUint16(10, files.length, true);
+  eocdView.setUint32(12, centralDirSize, true);
+  eocdView.setUint32(16, centralDirOffset, true);
+  eocdView.setUint16(20, 0, true);
+
+  chunks.push(eocd);
+
+  const totalSize = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const result = new Uint8Array(totalSize);
+  let pos = 0;
+  
+  for (const chunk of chunks) {
+    result.set(chunk, pos);
+    pos += chunk.length;
+  }
+
+  return result;
+}
+
+/**
  * Sanitize filename for cross-platform compatibility
  * Replaces characters that are problematic on macOS/Windows
  */
@@ -420,149 +578,6 @@ async function collectOPFSFiles(dirHandle, basePath = '') {
   return files;
 }
 
-/**
- * CRC-32 lookup table (pre-computed for performance)
- */
-const CRC32_TABLE = (() => {
-  const table = new Uint32Array(256);
-  for (let i = 0; i < 256; i++) {
-    let crc = i;
-    for (let j = 0; j < 8; j++) {
-      crc = (crc & 1) ? (0xEDB88320 ^ (crc >>> 1)) : (crc >>> 1);
-    }
-    table[i] = crc >>> 0;
-  }
-  return table;
-})();
-
-/**
- * Calculate CRC-32 checksum for a Uint8Array
- */
-function crc32(data) {
-  let crc = 0xFFFFFFFF;
-  for (let i = 0; i < data.length; i++) {
-    crc = CRC32_TABLE[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
-  }
-  return (crc ^ 0xFFFFFFFF) >>> 0;
-}
-
-/**
- * Convert Date to DOS date/time format for ZIP
- */
-function dateToDos(date) {
-  const time = ((date.getHours() & 0x1F) << 11) |
-               ((date.getMinutes() & 0x3F) << 5) |
-               ((date.getSeconds() >> 1) & 0x1F);
-  const dosDate = (((date.getFullYear() - 1980) & 0x7F) << 9) |
-                  ((date.getMonth() + 1) & 0x0F) << 5 |
-                  (date.getDate() & 0x1F);
-  return { time, date: dosDate };
-}
-
-/**
- * Create a ZIP file from collected files
- * Compatible with macOS Archive Utility
- */
-function createZip(files) {
-  const textEncoder = new TextEncoder();
-  const chunks = [];
-  const centralDirectory = [];
-  let offset = 0;
-  const now = dateToDos(new Date());
-
-  for (const file of files) {
-    // Ensure path uses forward slashes and has no leading slash
-    const cleanPath = file.path.replace(/\\/g, '/').replace(/^\/+/, '');
-    const pathBytes = textEncoder.encode(cleanPath);
-    const content = file.content;
-    const fileCrc = crc32(content);
-    
-    // Local file header (30 bytes + filename)
-    const localHeader = new Uint8Array(30 + pathBytes.length);
-    const view = new DataView(localHeader.buffer);
-    
-    view.setUint32(0, 0x04034b50, true);  // Local file header signature
-    view.setUint16(4, 10, true);           // Version needed (1.0 for STORE)
-    view.setUint16(6, 0, true);            // General purpose bit flag
-    view.setUint16(8, 0, true);            // Compression method (0 = STORE)
-    view.setUint16(10, now.time, true);    // Last mod time
-    view.setUint16(12, now.date, true);    // Last mod date
-    view.setUint32(14, fileCrc, true);     // CRC-32
-    view.setUint32(18, content.length, true); // Compressed size
-    view.setUint32(22, content.length, true); // Uncompressed size
-    view.setUint16(26, pathBytes.length, true); // File name length
-    view.setUint16(28, 0, true);           // Extra field length
-    localHeader.set(pathBytes, 30);
-
-    chunks.push(localHeader);
-    chunks.push(content);
-
-    // Central directory entry (46 bytes + filename)
-    const centralEntry = new Uint8Array(46 + pathBytes.length);
-    const centralView = new DataView(centralEntry.buffer);
-    
-    centralView.setUint32(0, 0x02014b50, true);  // Central dir signature
-    centralView.setUint16(4, 0x031E, true);      // Version made by (Unix, v3.0)
-    centralView.setUint16(6, 10, true);          // Version needed (1.0)
-    centralView.setUint16(8, 0, true);           // General purpose bit flag
-    centralView.setUint16(10, 0, true);          // Compression method (STORE)
-    centralView.setUint16(12, now.time, true);   // Last mod time
-    centralView.setUint16(14, now.date, true);   // Last mod date
-    centralView.setUint32(16, fileCrc, true);    // CRC-32
-    centralView.setUint32(20, content.length, true); // Compressed size
-    centralView.setUint32(24, content.length, true); // Uncompressed size
-    centralView.setUint16(28, pathBytes.length, true); // File name length
-    centralView.setUint16(30, 0, true);          // Extra field length
-    centralView.setUint16(32, 0, true);          // File comment length
-    centralView.setUint16(34, 0, true);          // Disk number start
-    centralView.setUint16(36, 0, true);          // Internal file attributes (binary)
-    // External attributes: Unix regular file with 0644 permissions
-    // Format: (mode << 16) | DOS attributes
-    // 0100644 octal = 0x81A4, shifted left 16 bits = 0x81A40000
-    centralView.setUint32(38, 0, true);          // Simplified: no external attributes
-    centralView.setUint32(42, offset, true);     // Offset of local header
-    centralEntry.set(pathBytes, 46);
-
-    centralDirectory.push(centralEntry);
-    offset += localHeader.length + content.length;
-  }
-
-  // Write central directory
-  const centralDirOffset = offset;
-  let centralDirSize = 0;
-  
-  for (const entry of centralDirectory) {
-    chunks.push(entry);
-    centralDirSize += entry.length;
-  }
-
-  // End of central directory record (22 bytes)
-  const eocd = new Uint8Array(22);
-  const eocdView = new DataView(eocd.buffer);
-  
-  eocdView.setUint32(0, 0x06054b50, true);  // EOCD signature
-  eocdView.setUint16(4, 0, true);            // Disk number
-  eocdView.setUint16(6, 0, true);            // Disk with central dir
-  eocdView.setUint16(8, files.length, true); // Entries on this disk
-  eocdView.setUint16(10, files.length, true);// Total entries
-  eocdView.setUint32(12, centralDirSize, true);   // Central dir size
-  eocdView.setUint32(16, centralDirOffset, true); // Central dir offset
-  eocdView.setUint16(20, 0, true);           // Comment length
-
-  chunks.push(eocd);
-
-  // Combine all chunks into final ZIP
-  const totalSize = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-  const result = new Uint8Array(totalSize);
-  let pos = 0;
-  
-  for (const chunk of chunks) {
-    result.set(chunk, pos);
-    pos += chunk.length;
-  }
-
-  return result;
-}
 
 /**
  * Download a Blob as a file
@@ -600,7 +615,8 @@ function ConnectionsApp({ host }) {
   };
 
   // OPFS Download
-  const downloadOPFS = async () => {
+  // Fast OPFS Download (no compression, use command-line unzip)
+  const downloadOPFSFast = async () => {
     if (isDownloadingOPFS.value) return;
     
     isDownloadingOPFS.value = true;
@@ -617,13 +633,62 @@ function ConnectionsApp({ host }) {
 
       opfsStatus.value = { type: 'loading', message: `Creating ZIP with ${files.length} files...` };
       
-      const zipData = createZip(files);
+      const zipData = createZipFast(files);
       const blob = new Blob([zipData], { type: 'application/zip' });
       
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
       downloadBlob(blob, `clawd-os1-opfs-${timestamp}.zip`);
 
-      opfsStatus.value = { type: 'success', message: `Downloaded ${files.length} files successfully!` };
+      opfsStatus.value = { type: 'success', message: `Downloaded ${files.length} files! Use: unzip filename.zip` };
+      systemSounds.success();
+    } catch (err) {
+      console.error('[Connections] OPFS download failed:', err);
+      opfsStatus.value = { type: 'error', message: `Failed to download: ${err.message}` };
+      systemSounds.error();
+    } finally {
+      isDownloadingOPFS.value = false;
+    }
+  };
+
+  // Compatible OPFS Download (uses JSZip, works with Finder)
+  const downloadOPFSCompatible = async () => {
+    if (isDownloadingOPFS.value) return;
+    
+    isDownloadingOPFS.value = true;
+    opfsStatus.value = { type: 'loading', message: 'Loading ZIP library...' };
+
+    try {
+      const zip = new (await loadJSZip())();
+      
+      opfsStatus.value = { type: 'loading', message: 'Collecting OPFS files...' };
+      
+      const root = await navigator.storage.getDirectory();
+      const files = await collectOPFSFiles(root);
+
+      if (files.length === 0) {
+        opfsStatus.value = { type: 'info', message: 'OPFS is empty. Nothing to download.' };
+        return;
+      }
+
+      opfsStatus.value = { type: 'loading', message: `Adding ${files.length} files...` };
+      
+      for (const file of files) {
+        const cleanPath = file.path.replace(/^\/+/, '');
+        zip.file(cleanPath, file.content, { binary: true });
+      }
+
+      opfsStatus.value = { type: 'loading', message: 'Compressing...' };
+      
+      const blob = await zip.generateAsync({ 
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      });
+      
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      downloadBlob(blob, `clawd-os1-opfs-${timestamp}.zip`);
+
+      opfsStatus.value = { type: 'success', message: `Downloaded ${files.length} files (compressed)!` };
       systemSounds.success();
     } catch (err) {
       console.error('[Connections] OPFS download failed:', err);
@@ -1035,23 +1100,47 @@ function ConnectionsApp({ host }) {
             <span class="section-title">Origin Private File System</span>
           </div>
           <p class="section-description">
-            Download the entire OPFS filesystem as a ZIP archive. This includes all files stored by the browser for CLAWD OS1.
+            Download the entire OPFS filesystem as a ZIP archive. Choose fast (use Terminal to unzip) or compatible (works with Finder).
           </p>
           <div class="actions">
             <button
               class="action-btn action-btn--primary"
-              onClick=${downloadOPFS}
+              onClick=${downloadOPFSFast}
               disabled=${isDownloadingOPFS.value}
+              title="Fast download, extract with: unzip filename.zip"
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+              </svg>
+              ${isDownloadingOPFS.value ? 'Downloading...' : 'Fast'}
+            </button>
+            <button
+              class="action-btn"
+              onClick=${downloadOPFSCompatible}
+              disabled=${isDownloadingOPFS.value}
+              title="Slower but works with Finder double-click"
             >
               <svg viewBox="0 0 24 24">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="7 10 12 15 17 10"/>
                 <line x1="12" y1="15" x2="12" y2="3"/>
               </svg>
-              ${isDownloadingOPFS.value ? 'Downloading...' : 'Download OPFS'}
+              ${isDownloadingOPFS.value ? 'Downloading...' : 'Compatible'}
             </button>
           </div>
           ${renderStatus(opfsStatus.value)}
+
+          <div class="info-box">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="16" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <span class="info-box-text">
+              <strong>Fast:</strong> Instant download, use <code>unzip file.zip</code> in Terminal.<br/>
+              <strong>Compatible:</strong> Compressed, works with Finder double-click.
+            </span>
+          </div>
         </div>
 
         <!-- AgentFS Section -->

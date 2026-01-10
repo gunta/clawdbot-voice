@@ -1,737 +1,978 @@
 /**
  * CLAWD OS1 - Component Laboratory
  * Revolutionary Web Components for a Futuristic OS
+ * Migrated to Preact + HTM + Signals
+ * Styles loaded from external CSS files for proper syntax highlighting
  */
+import { html } from 'htm/preact';
+import { useSignal } from '@preact/signals';
+import { useRef, useEffect } from 'preact/hooks';
+import { createShadowComponent } from '../../lib/shadow-component.js';
+import { ErrorBoundary } from '../../lib/error-boundary.js';
+
+// Base path for showcase styles
+const STYLES_PATH = './src/components/showcase';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // BREATH BUTTON - Living, breathing button
 // ═══════════════════════════════════════════════════════════════════════════
 
-class BreathButton extends HTMLElement {
-  constructor() {
-    super();
-    this.proximityThreshold = 150;
-  }
+function BreathButton({ host }) {
+  const proximity = useSignal('');
 
-  connectedCallback() {
-    const btn = this.shadowRoot?.querySelector('.breath-btn');
-    if (!btn) return;
-
-    // Track mouse proximity for breathing effect
-    document.addEventListener('mousemove', (e) => {
-      const rect = this.getBoundingClientRect();
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      const rect = host.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
       const distance = Math.hypot(e.clientX - centerX, e.clientY - centerY);
 
       if (distance < 50) {
-        this.setAttribute('proximity', 'close');
-      } else if (distance < this.proximityThreshold) {
-        this.setAttribute('proximity', 'near');
+        proximity.value = 'close';
+        host.setAttribute('proximity', 'close');
+      } else if (distance < 150) {
+        proximity.value = 'near';
+        host.setAttribute('proximity', 'near');
       } else {
-        this.removeAttribute('proximity');
+        proximity.value = '';
+        host.removeAttribute('proximity');
       }
-    });
+    };
 
-    btn.addEventListener('click', () => {
-      this.dispatchEvent(new CustomEvent('breath-click', { bubbles: true }));
-    });
-  }
+    document.addEventListener('mousemove', handleMouseMove);
+    return () => document.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  const handleClick = () => {
+    host.dispatchEvent(new CustomEvent('breath-click', { bubbles: true }));
+  };
+
+  return html`
+    <${ErrorBoundary} name="BreathButton">
+      <button class="breath-btn" type="button" onClick=${handleClick}>
+        <div class="breath-membrane"></div>
+        <div class="breath-inner">
+          <span class="breath-text"><slot></slot></span>
+        </div>
+      </button>
+    <//>
+  `;
 }
 
-customElements.define('breath-button', BreathButton);
+createShadowComponent(BreathButton, { 
+  tag: 'breath-button', 
+  styleUrl: `${STYLES_PATH}/breath-button.css` 
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PULSE BADGE - Heartbeat status indicator
 // ═══════════════════════════════════════════════════════════════════════════
 
-class PulseBadge extends HTMLElement {
-  static get observedAttributes() {
-    return ['status'];
-  }
+function PulseBadge({ host }) {
+  const status = useSignal(host.getAttribute('status') || '');
 
-  connectedCallback() {
-    // Status is set via attribute, CSS handles the visuals
-  }
+  useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'status') {
+          const newStatus = host.getAttribute('status') || '';
+          status.value = newStatus;
+          host.dispatchEvent(new CustomEvent('status-change', {
+            detail: { status: newStatus },
+            bubbles: true
+          }));
+        }
+      });
+    });
 
-  attributeChangedCallback(name, oldValue, newValue) {
-    if (name === 'status') {
-      this.dispatchEvent(new CustomEvent('status-change', {
-        detail: { status: newValue },
-        bubbles: true
-      }));
-    }
-  }
+    observer.observe(host, { attributes: true });
+    return () => observer.disconnect();
+  }, []);
+
+  return html`
+    <${ErrorBoundary} name="PulseBadge">
+      <div class="badge">
+        <div class="badge-heartbeat"></div>
+        <div class="badge-heartbeat delay"></div>
+        <span class="badge-core"><slot></slot></span>
+      </div>
+    <//>
+  `;
 }
 
-customElements.define('pulse-badge', PulseBadge);
+createShadowComponent(PulseBadge, { 
+  tag: 'pulse-badge', 
+  styleUrl: `${STYLES_PATH}/pulse-badge.css` 
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // FLUID GLASS - Morphing glass card with tilt effect
 // ═══════════════════════════════════════════════════════════════════════════
 
-class FluidGlass extends HTMLElement {
-  constructor() {
-    super();
-    this.isDragging = false;
-    this.tiltIntensity = 15;
-  }
+function FluidGlass({ host }) {
+  const containerRef = useRef(null);
+  const isDragging = useRef(false);
+  const tiltIntensity = 15;
 
-  connectedCallback() {
-    const container = this.shadowRoot?.querySelector('.glass-container');
+  useEffect(() => {
+    const container = containerRef.current;
     if (!container) return;
 
-    // Tilt on mouse move
-    container.addEventListener('mousemove', (e) => {
+    const handleMouseMove = (e) => {
       const rect = container.getBoundingClientRect();
       const x = (e.clientX - rect.left) / rect.width;
       const y = (e.clientY - rect.top) / rect.height;
 
-      const tiltX = (y - 0.5) * this.tiltIntensity;
-      const tiltY = (x - 0.5) * -this.tiltIntensity;
+      const tiltX = (y - 0.5) * tiltIntensity;
+      const tiltY = (x - 0.5) * -tiltIntensity;
 
-      this.style.setProperty('--tilt-x', `${tiltX}deg`);
-      this.style.setProperty('--tilt-y', `${tiltY}deg`);
-      this.style.setProperty('--mouse-x', `${x * 100}%`);
-      this.style.setProperty('--mouse-y', `${y * 100}%`);
-      this.setAttribute('tilt', '');
-    });
+      host.style.setProperty('--tilt-x', `${tiltX}deg`);
+      host.style.setProperty('--tilt-y', `${tiltY}deg`);
+      host.style.setProperty('--mouse-x', `${x * 100}%`);
+      host.style.setProperty('--mouse-y', `${y * 100}%`);
+      host.setAttribute('tilt', '');
+    };
 
-    container.addEventListener('mouseleave', () => {
-      this.removeAttribute('tilt');
-      this.style.removeProperty('--tilt-x');
-      this.style.removeProperty('--tilt-y');
-    });
+    const handleMouseLeave = () => {
+      host.removeAttribute('tilt');
+      host.style.removeProperty('--tilt-x');
+      host.style.removeProperty('--tilt-y');
+    };
 
-    // Drag interaction
-    container.addEventListener('mousedown', (e) => {
-      this.isDragging = true;
-      this.setAttribute('dragging', '');
-      this.startX = e.clientX;
-      this.startY = e.clientY;
-    });
+    const handleMouseDown = () => {
+      isDragging.current = true;
+      host.setAttribute('dragging', '');
+    };
 
-    document.addEventListener('mouseup', (e) => {
-      if (this.isDragging) {
-        this.isDragging = false;
-        this.removeAttribute('dragging');
+    const handleMouseUp = (e) => {
+      if (isDragging.current) {
+        isDragging.current = false;
+        host.removeAttribute('dragging');
         
-        // Ripple effect on release
         const rect = container.getBoundingClientRect();
-        this.style.setProperty('--ripple-x', `${((e.clientX - rect.left) / rect.width) * 100}%`);
-        this.style.setProperty('--ripple-y', `${((e.clientY - rect.top) / rect.height) * 100}%`);
-        this.setAttribute('ripple', '');
-        setTimeout(() => this.removeAttribute('ripple'), 800);
+        host.style.setProperty('--ripple-x', `${((e.clientX - rect.left) / rect.width) * 100}%`);
+        host.style.setProperty('--ripple-y', `${((e.clientY - rect.top) / rect.height) * 100}%`);
+        host.setAttribute('ripple', '');
+        setTimeout(() => host.removeAttribute('ripple'), 800);
       }
-    });
-  }
+    };
+
+    container.addEventListener('mousemove', handleMouseMove);
+    container.addEventListener('mouseleave', handleMouseLeave);
+    container.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      container.removeEventListener('mousemove', handleMouseMove);
+      container.removeEventListener('mouseleave', handleMouseLeave);
+      container.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  return html`
+    <${ErrorBoundary} name="FluidGlass">
+      <div class="glass-container" ref=${containerRef}>
+        <div class="glass-surface">
+          <div class="glass-content">
+            <slot></slot>
+          </div>
+        </div>
+      </div>
+    <//>
+  `;
 }
 
-customElements.define('fluid-glass', FluidGlass);
+createShadowComponent(FluidGlass, { 
+  tag: 'fluid-glass', 
+  styleUrl: `${STYLES_PATH}/fluid-glass.css` 
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PHASE TOGGLE - Matter state transitioning toggle
 // ═══════════════════════════════════════════════════════════════════════════
 
-class PhaseToggle extends HTMLElement {
-  constructor() {
-    super();
-    this.checked = false;
-  }
+function PhaseToggle({ host }) {
+  const checked = useSignal(false);
 
-  connectedCallback() {
-    const btn = this.shadowRoot?.querySelector('.phase-toggle');
-    if (!btn) return;
+  const handleClick = () => {
+    checked.value = !checked.value;
+    
+    host.setAttribute('transitioning', '');
+    setTimeout(() => host.removeAttribute('transitioning'), 500);
 
-    btn.addEventListener('click', () => {
-      this.checked = !this.checked;
-      btn.setAttribute('aria-checked', this.checked);
-      
-      // Transitioning state during animation
-      this.setAttribute('transitioning', '');
-      setTimeout(() => this.removeAttribute('transitioning'), 500);
+    host.dispatchEvent(new CustomEvent('toggle', {
+      detail: { checked: checked.value },
+      bubbles: true
+    }));
+  };
 
-      this.dispatchEvent(new CustomEvent('toggle', {
-        detail: { checked: this.checked },
-        bubbles: true
-      }));
-    });
-  }
+  return html`
+    <${ErrorBoundary} name="PhaseToggle">
+      <button 
+        class="phase-toggle" 
+        type="button"
+        role="switch"
+        aria-checked=${checked.value}
+        onClick=${handleClick}
+      >
+        <div class="phase-track"></div>
+        <div class="phase-thumb">
+          <div class="thumb-core"></div>
+        </div>
+        <div class="phase-labels">
+          <span class="label-off">OFF</span>
+          <span class="label-on">ON</span>
+        </div>
+      </button>
+    <//>
+  `;
 }
 
-customElements.define('phase-toggle', PhaseToggle);
+createShadowComponent(PhaseToggle, { 
+  tag: 'phase-toggle', 
+  styleUrl: `${STYLES_PATH}/phase-toggle.css` 
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SPECTRUM SLIDER - Energy trail slider
 // ═══════════════════════════════════════════════════════════════════════════
 
-class SpectrumSlider extends HTMLElement {
-  constructor() {
-    super();
-    this.value = 50;
-    this.min = 0;
-    this.max = 100;
-    this.isDragging = false;
-    this.lastX = 0;
-    this.lastTime = 0;
-  }
+function SpectrumSlider({ host }) {
+  const value = useSignal(parseInt(host.getAttribute('value') || '50'));
+  const min = parseInt(host.getAttribute('min') || '0');
+  const max = parseInt(host.getAttribute('max') || '100');
+  const containerRef = useRef(null);
+  const isDragging = useRef(false);
+  const lastX = useRef(0);
+  const lastTime = useRef(0);
 
-  connectedCallback() {
-    this.value = parseInt(this.getAttribute('value') || '50');
-    this.min = parseInt(this.getAttribute('min') || '0');
-    this.max = parseInt(this.getAttribute('max') || '100');
+  const updateVisuals = (val) => {
+    const percentage = ((val - min) / (max - min)) * 100;
+    host.style.setProperty('--value', `${percentage}%`);
+  };
 
-    const container = this.shadowRoot?.querySelector('.slider-container');
-    const thumb = this.shadowRoot?.querySelector('.slider-thumb');
-    if (!container || !thumb) return;
-
-    this.updateVisuals();
+  useEffect(() => {
+    updateVisuals(value.value);
+    
+    const container = containerRef.current;
+    if (!container) return;
 
     const handleMove = (clientX) => {
       const rect = container.getBoundingClientRect();
       const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      this.value = Math.round(x * (this.max - this.min) + this.min);
+      value.value = Math.round(x * (max - min) + min);
       
-      // Calculate velocity for trail effect
       const now = Date.now();
-      const velocity = Math.abs(clientX - this.lastX) / (now - this.lastTime + 1);
+      const velocity = Math.abs(clientX - lastX.current) / (now - lastTime.current + 1);
       
       if (velocity > 2) {
-        this.setAttribute('velocity', 'fast');
+        host.setAttribute('velocity', 'fast');
       } else if (velocity > 0.5) {
-        this.setAttribute('velocity', 'medium');
+        host.setAttribute('velocity', 'medium');
       } else {
-        this.setAttribute('velocity', 'slow');
+        host.setAttribute('velocity', 'slow');
       }
 
-      this.lastX = clientX;
-      this.lastTime = now;
+      lastX.current = clientX;
+      lastTime.current = now;
       
-      this.updateVisuals();
-      this.updateSlot();
+      updateVisuals(value.value);
     };
 
-    container.addEventListener('mousedown', (e) => {
-      this.isDragging = true;
-      this.setAttribute('dragging', '');
+    const handleMouseDown = (e) => {
+      isDragging.current = true;
+      host.setAttribute('dragging', '');
       handleMove(e.clientX);
-    });
+    };
 
-    document.addEventListener('mousemove', (e) => {
-      if (this.isDragging) {
+    const handleMouseMove = (e) => {
+      if (isDragging.current) {
         handleMove(e.clientX);
       }
-    });
+    };
 
-    document.addEventListener('mouseup', () => {
-      if (this.isDragging) {
-        this.isDragging = false;
-        this.removeAttribute('dragging');
-        setTimeout(() => this.removeAttribute('velocity'), 300);
+    const handleMouseUp = () => {
+      if (isDragging.current) {
+        isDragging.current = false;
+        host.removeAttribute('dragging');
+        setTimeout(() => host.removeAttribute('velocity'), 300);
         
-        this.dispatchEvent(new CustomEvent('change', {
-          detail: { value: this.value },
+        host.dispatchEvent(new CustomEvent('change', {
+          detail: { value: value.value },
           bubbles: true
         }));
       }
-    });
+    };
 
-    // Touch support
-    container.addEventListener('touchstart', (e) => {
-      this.isDragging = true;
-      this.setAttribute('dragging', '');
+    const handleTouchStart = (e) => {
+      isDragging.current = true;
+      host.setAttribute('dragging', '');
       handleMove(e.touches[0].clientX);
-    });
+    };
 
-    container.addEventListener('touchmove', (e) => {
-      if (this.isDragging) {
+    const handleTouchMove = (e) => {
+      if (isDragging.current) {
         e.preventDefault();
         handleMove(e.touches[0].clientX);
       }
-    });
+    };
 
-    container.addEventListener('touchend', () => {
-      this.isDragging = false;
-      this.removeAttribute('dragging');
-      setTimeout(() => this.removeAttribute('velocity'), 300);
-    });
-  }
+    const handleTouchEnd = () => {
+      isDragging.current = false;
+      host.removeAttribute('dragging');
+      setTimeout(() => host.removeAttribute('velocity'), 300);
+    };
 
-  updateVisuals() {
-    const percentage = ((this.value - this.min) / (this.max - this.min)) * 100;
-    this.style.setProperty('--value', `${percentage}%`);
-  }
+    container.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    container.addEventListener('touchstart', handleTouchStart);
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd);
 
-  updateSlot() {
-    this.textContent = this.value.toString();
-  }
+    return () => {
+      container.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, []);
+
+  return html`
+    <${ErrorBoundary} name="SpectrumSlider">
+      <div class="slider-container" ref=${containerRef}>
+        <div class="slider-track">
+          <div class="track-energy"></div>
+        </div>
+        <div class="slider-thumb">
+          <div class="thumb-ring"></div>
+          <div class="thumb-center"></div>
+        </div>
+        <div class="slider-value">${value}</div>
+      </div>
+    <//>
+  `;
 }
 
-customElements.define('spectrum-slider', SpectrumSlider);
+createShadowComponent(SpectrumSlider, { 
+  tag: 'spectrum-slider', 
+  styleUrl: `${STYLES_PATH}/spectrum-slider.css` 
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // NERVE INPUT - Neural activity input field
 // ═══════════════════════════════════════════════════════════════════════════
 
-class NerveInput extends HTMLElement {
-  constructor() {
-    super();
-    this.typingTimeout = null;
-  }
+function NerveInput({ host }) {
+  const inputRef = useRef(null);
+  const typingTimeout = useRef(null);
+  const placeholder = host.getAttribute('placeholder') || '';
+  const label = host.getAttribute('label') || 'input';
 
-  connectedCallback() {
-    const input = this.shadowRoot?.querySelector('.nerve-input');
-    if (!input) return;
+  const handleInput = (e) => {
+    host.setAttribute('typing', '');
+    clearTimeout(typingTimeout.current);
+    
+    typingTimeout.current = setTimeout(() => {
+      host.removeAttribute('typing');
+    }, 150);
 
-    const placeholder = this.getAttribute('placeholder');
-    if (placeholder) {
-      input.placeholder = placeholder;
-    }
+    host.dispatchEvent(new CustomEvent('nerve-input', {
+      detail: { value: e.target.value },
+      bubbles: true
+    }));
+  };
 
-    input.addEventListener('input', () => {
-      this.setAttribute('typing', '');
-      clearTimeout(this.typingTimeout);
-      
-      this.typingTimeout = setTimeout(() => {
-        this.removeAttribute('typing');
-      }, 150);
+  const handleFocus = () => host.setAttribute('focused', '');
+  const handleBlur = () => host.removeAttribute('focused');
 
-      this.dispatchEvent(new CustomEvent('nerve-input', {
-        detail: { value: input.value },
-        bubbles: true
-      }));
-    });
+  useEffect(() => {
+    host.setProcessing = (processing) => {
+      if (processing) host.setAttribute('processing', '');
+      else host.removeAttribute('processing');
+    };
+    host.setError = (error) => {
+      if (error) host.setAttribute('error', '');
+      else host.removeAttribute('error');
+    };
+  }, []);
 
-    input.addEventListener('focus', () => {
-      this.setAttribute('focused', '');
-    });
-
-    input.addEventListener('blur', () => {
-      this.removeAttribute('focused');
-    });
-  }
-
-  setProcessing(processing) {
-    if (processing) {
-      this.setAttribute('processing', '');
-    } else {
-      this.removeAttribute('processing');
-    }
-  }
-
-  setError(error) {
-    if (error) {
-      this.setAttribute('error', '');
-    } else {
-      this.removeAttribute('error');
-    }
-  }
+  return html`
+    <${ErrorBoundary} name="NerveInput">
+      <div class="nerve-container">
+        <div class="nerve-field">
+          <input 
+            class="nerve-input"
+            ref=${inputRef}
+            type="text"
+            placeholder=${placeholder}
+            onInput=${handleInput}
+            onFocus=${handleFocus}
+            onBlur=${handleBlur}
+          />
+          <div class="nerve-synapses">
+            <div class="synapse s1"></div>
+            <div class="synapse s2"></div>
+            <div class="synapse s3"></div>
+            <div class="synapse s4"></div>
+            <div class="synapse s5"></div>
+          </div>
+          <span class="nerve-label">${label}</span>
+          <div class="nerve-underline">
+            <div class="underline-static"></div>
+            <div class="underline-active"></div>
+          </div>
+        </div>
+      </div>
+    <//>
+  `;
 }
 
-customElements.define('nerve-input', NerveInput);
+createShadowComponent(NerveInput, { 
+  tag: 'nerve-input', 
+  styleUrl: `${STYLES_PATH}/nerve-input.css` 
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // VOID SELECT - Singularity dropdown
 // ═══════════════════════════════════════════════════════════════════════════
 
-class VoidSelect extends HTMLElement {
-  constructor() {
-    super();
-    this.isOpen = false;
-    this.selectedValue = null;
-  }
+function VoidSelect({ host }) {
+  const isOpen = useSignal(false);
+  const selectedText = useSignal(host.getAttribute('placeholder') || 'Select...');
 
-  connectedCallback() {
-    const trigger = this.shadowRoot?.querySelector('.void-trigger');
-    const dropdown = this.shadowRoot?.querySelector('.void-dropdown');
-    if (!trigger || !dropdown) return;
+  const handleTriggerClick = () => {
+    isOpen.value = !isOpen.value;
+    if (isOpen.value) {
+      host.setAttribute('open', '');
+    } else {
+      host.removeAttribute('open');
+    }
+  };
 
-    trigger.addEventListener('click', () => {
-      this.isOpen = !this.isOpen;
-      if (this.isOpen) {
-        this.setAttribute('open', '');
-      } else {
-        this.removeAttribute('open');
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (!host.contains(e.target) && isOpen.value) {
+        isOpen.value = false;
+        host.removeAttribute('open');
       }
-    });
+    };
 
-    // Close on outside click
-    document.addEventListener('click', (e) => {
-      if (!this.contains(e.target) && this.isOpen) {
-        this.isOpen = false;
-        this.removeAttribute('open');
+    const handleOptionClick = (e) => {
+      const option = e.target.closest('[data-value]');
+      if (option) {
+        const value = option.dataset.value;
+        const text = option.textContent;
+
+        host.setAttribute('selecting', '');
+        host.querySelectorAll('[data-value]').forEach(opt => opt.classList.remove('selected'));
+        option.classList.add('selected');
+
+        setTimeout(() => {
+          selectedText.value = text;
+          isOpen.value = false;
+          host.removeAttribute('open');
+          host.removeAttribute('selecting');
+
+          host.dispatchEvent(new CustomEvent('change', {
+            detail: { value, text },
+            bubbles: true
+          }));
+        }, 400);
       }
-    });
+    };
 
-    // Handle option selection
-    this.querySelectorAll('[data-value]').forEach(option => {
-      option.addEventListener('click', () => {
-        this.selectOption(option);
-      });
-    });
-  }
+    document.addEventListener('click', handleOutsideClick);
+    host.addEventListener('click', handleOptionClick);
 
-  selectOption(option) {
-    const value = option.dataset.value;
-    const text = option.textContent;
+    return () => {
+      document.removeEventListener('click', handleOutsideClick);
+      host.removeEventListener('click', handleOptionClick);
+    };
+  }, []);
 
-    // Mark as selecting for animation
-    this.setAttribute('selecting', '');
-    this.querySelectorAll('[data-value]').forEach(opt => opt.classList.remove('selected'));
-    option.classList.add('selected');
-
-    setTimeout(() => {
-      this.selectedValue = value;
-      const selectedDisplay = this.shadowRoot?.querySelector('.void-selected');
-      if (selectedDisplay) {
-        selectedDisplay.textContent = text;
-      }
-
-      this.isOpen = false;
-      this.removeAttribute('open');
-      this.removeAttribute('selecting');
-
-      this.dispatchEvent(new CustomEvent('change', {
-        detail: { value, text },
-        bubbles: true
-      }));
-    }, 400);
-  }
+  return html`
+    <${ErrorBoundary} name="VoidSelect">
+      <div class="void-container">
+        <button class="void-trigger" type="button" onClick=${handleTriggerClick}>
+          <span class="void-selected">${selectedText}</span>
+          <span class="void-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </span>
+        </button>
+        <div class="void-dropdown">
+          <div class="void-options">
+            <slot></slot>
+          </div>
+        </div>
+      </div>
+    <//>
+  `;
 }
 
-customElements.define('void-select', VoidSelect);
+createShadowComponent(VoidSelect, { 
+  tag: 'void-select', 
+  styleUrl: `${STYLES_PATH}/void-select.css` 
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // RIPPLE LIST - Neural propagation list
 // ═══════════════════════════════════════════════════════════════════════════
 
-class RippleList extends HTMLElement {
-  connectedCallback() {
-    const items = this.querySelectorAll('.ripple-item');
-    
-    items.forEach((item, index) => {
-      item.addEventListener('mouseenter', () => {
-        this.setAttribute('ripple-from', index.toString());
-      });
+function RippleList({ host }) {
+  useEffect(() => {
+    const handleMouseEnter = (e) => {
+      const item = e.target.closest('.ripple-item');
+      if (item) {
+        const items = Array.from(host.querySelectorAll('.ripple-item'));
+        const index = items.indexOf(item);
+        host.setAttribute('ripple-from', index.toString());
+      }
+    };
 
-      item.addEventListener('mouseleave', () => {
-        this.removeAttribute('ripple-from');
-      });
-    });
-  }
+    const handleMouseLeave = () => {
+      host.removeAttribute('ripple-from');
+    };
+
+    host.addEventListener('mouseenter', handleMouseEnter, true);
+    host.addEventListener('mouseleave', handleMouseLeave, true);
+
+    return () => {
+      host.removeEventListener('mouseenter', handleMouseEnter, true);
+      host.removeEventListener('mouseleave', handleMouseLeave, true);
+    };
+  }, []);
+
+  return html`
+    <${ErrorBoundary} name="RippleList">
+      <div class="ripple-container">
+        <svg class="connection-lines" preserveAspectRatio="none">
+          <path class="conn-path" d="M1 0 V100%"/>
+        </svg>
+        <slot></slot>
+      </div>
+    <//>
+  `;
 }
 
-customElements.define('ripple-list', RippleList);
+createShadowComponent(RippleList, { 
+  tag: 'ripple-list', 
+  styleUrl: `${STYLES_PATH}/ripple-list.css` 
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ORBITAL MENU - Radial navigation
 // ═══════════════════════════════════════════════════════════════════════════
 
-class OrbitalMenu extends HTMLElement {
-  constructor() {
-    super();
-    this.isExpanded = false;
-  }
+function OrbitalMenu({ host }) {
+  const isExpanded = useSignal(false);
 
-  connectedCallback() {
-    const core = this.shadowRoot?.querySelector('.orbital-core');
-    if (!core) return;
+  const handleCoreClick = () => {
+    isExpanded.value = !isExpanded.value;
+    if (isExpanded.value) {
+      host.setAttribute('expanded', '');
+    } else {
+      host.removeAttribute('expanded');
+    }
+  };
 
-    core.addEventListener('click', () => {
-      this.isExpanded = !this.isExpanded;
-      if (this.isExpanded) {
-        this.setAttribute('expanded', '');
-      } else {
-        this.removeAttribute('expanded');
-      }
-    });
-
-    // Handle item clicks
-    this.querySelectorAll('.orbital-item').forEach(item => {
-      item.addEventListener('click', () => {
-        this.dispatchEvent(new CustomEvent('orbital-select', {
+  useEffect(() => {
+    const handleItemClick = (e) => {
+      const item = e.target.closest('.orbital-item');
+      if (item) {
+        host.dispatchEvent(new CustomEvent('orbital-select', {
           detail: { 
             angle: item.dataset.angle,
             orbit: item.dataset.orbit 
           },
           bubbles: true
         }));
-      });
-    });
-
-    // Close on outside click
-    document.addEventListener('click', (e) => {
-      if (!this.contains(e.target) && this.isExpanded) {
-        this.isExpanded = false;
-        this.removeAttribute('expanded');
       }
-    });
-  }
+    };
+
+    const handleOutsideClick = (e) => {
+      if (!host.contains(e.target) && isExpanded.value) {
+        isExpanded.value = false;
+        host.removeAttribute('expanded');
+      }
+    };
+
+    host.addEventListener('click', handleItemClick);
+    document.addEventListener('click', handleOutsideClick);
+
+    return () => {
+      host.removeEventListener('click', handleItemClick);
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, []);
+
+  return html`
+    <${ErrorBoundary} name="OrbitalMenu">
+      <div class="orbital-container">
+        <svg class="orbit-paths" viewBox="0 0 260 260">
+          <circle class="orbit-path" cx="130" cy="130" r="80"/>
+        </svg>
+        <button class="orbital-core" type="button" onClick=${handleCoreClick}>
+          <span class="core-icon">+</span>
+          <div class="core-ring"></div>
+          <div class="core-ring ring-2"></div>
+        </button>
+        <div class="orbital-items">
+          <slot></slot>
+        </div>
+      </div>
+    <//>
+  `;
 }
 
-customElements.define('orbital-menu', OrbitalMenu);
+createShadowComponent(OrbitalMenu, { 
+  tag: 'orbital-menu', 
+  styleUrl: `${STYLES_PATH}/orbital-menu.css` 
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // GRAVITY CARD - Gravitational tilt card
 // ═══════════════════════════════════════════════════════════════════════════
 
-class GravityCard extends HTMLElement {
-  constructor() {
-    super();
-    this.maxTilt = 20;
-  }
+function GravityCard({ host }) {
+  const containerRef = useRef(null);
+  const maxTilt = 20;
 
-  connectedCallback() {
-    const container = this.shadowRoot?.querySelector('.gravity-container');
+  useEffect(() => {
+    const container = containerRef.current;
     if (!container) return;
 
-    container.addEventListener('mousemove', (e) => {
+    const handleMouseMove = (e) => {
       const rect = container.getBoundingClientRect();
       const x = (e.clientX - rect.left) / rect.width;
       const y = (e.clientY - rect.top) / rect.height;
 
-      const tiltX = (y - 0.5) * this.maxTilt;
-      const tiltY = (x - 0.5) * -this.maxTilt;
+      const tiltX = (y - 0.5) * maxTilt;
+      const tiltY = (x - 0.5) * -maxTilt;
 
-      this.style.setProperty('--tilt-x', `${tiltX}deg`);
-      this.style.setProperty('--tilt-y', `${tiltY}deg`);
+      host.style.setProperty('--tilt-x', `${tiltX}deg`);
+      host.style.setProperty('--tilt-y', `${tiltY}deg`);
 
-      // Strong pull when near center
       const distFromCenter = Math.hypot(x - 0.5, y - 0.5);
       if (distFromCenter < 0.2) {
-        this.setAttribute('strong-pull', '');
+        host.setAttribute('strong-pull', '');
       } else {
-        this.removeAttribute('strong-pull');
+        host.removeAttribute('strong-pull');
       }
-    });
+    };
 
-    container.addEventListener('mouseleave', () => {
-      this.style.removeProperty('--tilt-x');
-      this.style.removeProperty('--tilt-y');
-      this.removeAttribute('strong-pull');
-    });
+    const handleMouseLeave = () => {
+      host.style.removeProperty('--tilt-x');
+      host.style.removeProperty('--tilt-y');
+      host.removeAttribute('strong-pull');
+    };
 
-    container.addEventListener('click', (e) => {
-      this.setAttribute('ripple', '');
-      setTimeout(() => this.removeAttribute('ripple'), 800);
-    });
-  }
+    const handleClick = () => {
+      host.setAttribute('ripple', '');
+      setTimeout(() => host.removeAttribute('ripple'), 800);
+    };
+
+    container.addEventListener('mousemove', handleMouseMove);
+    container.addEventListener('mouseleave', handleMouseLeave);
+    container.addEventListener('click', handleClick);
+
+    return () => {
+      container.removeEventListener('mousemove', handleMouseMove);
+      container.removeEventListener('mouseleave', handleMouseLeave);
+      container.removeEventListener('click', handleClick);
+    };
+  }, []);
+
+  return html`
+    <${ErrorBoundary} name="GravityCard">
+      <div class="gravity-container" ref=${containerRef} tabindex="0">
+        <div class="gravity-surface">
+          <div class="surface-content">
+            <slot></slot>
+          </div>
+        </div>
+      </div>
+    <//>
+  `;
 }
 
-customElements.define('gravity-card', GravityCard);
+createShadowComponent(GravityCard, { 
+  tag: 'gravity-card', 
+  styleUrl: `${STYLES_PATH}/gravity-card.css` 
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // HOLOGRAM AVATAR - Holographic projection avatar
 // ═══════════════════════════════════════════════════════════════════════════
 
-class HologramAvatar extends HTMLElement {
-  static get observedAttributes() {
-    return ['status'];
-  }
-
-  connectedCallback() {
-    // Status-based styling is handled by CSS
-  }
+function HologramAvatar({ host }) {
+  return html`
+    <${ErrorBoundary} name="HologramAvatar">
+      <div class="holo-container">
+        <div class="holo-projection">
+          <div class="holo-image">
+            <slot>
+              <svg class="default-avatar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="8" r="4"/>
+                <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
+              </svg>
+            </slot>
+          </div>
+          <div class="holo-scanlines"></div>
+        </div>
+        <div class="holo-base">
+          <div class="base-ring"></div>
+        </div>
+        <div class="status-indicator"></div>
+      </div>
+    <//>
+  `;
 }
 
-customElements.define('hologram-avatar', HologramAvatar);
+createShadowComponent(HologramAvatar, { 
+  tag: 'hologram-avatar', 
+  styleUrl: `${STYLES_PATH}/hologram-avatar.css` 
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // AURORA PROGRESS - Aurora borealis progress bar
 // ═══════════════════════════════════════════════════════════════════════════
 
-class AuroraProgress extends HTMLElement {
-  static get observedAttributes() {
-    return ['value'];
-  }
+function AuroraProgress({ host }) {
+  const value = useSignal(parseInt(host.getAttribute('value') || '0'));
 
-  connectedCallback() {
-    this.updateProgress();
-  }
-
-  attributeChangedCallback(name, oldValue, newValue) {
-    if (name === 'value') {
-      this.updateProgress();
-    }
-  }
-
-  updateProgress() {
-    const value = parseInt(this.getAttribute('value') || '0');
-    this.style.setProperty('--progress', `${value}%`);
+  const updateProgress = (val) => {
+    host.style.setProperty('--progress', `${val}%`);
     
-    // Set intensity based on progress
-    if (value >= 100) {
-      this.setAttribute('complete', '');
-      this.setAttribute('intensity', 'high');
-    } else if (value >= 67) {
-      this.removeAttribute('complete');
-      this.setAttribute('intensity', 'high');
-    } else if (value >= 34) {
-      this.removeAttribute('complete');
-      this.setAttribute('intensity', 'medium');
+    if (val >= 100) {
+      host.setAttribute('complete', '');
+      host.setAttribute('intensity', 'high');
+    } else if (val >= 67) {
+      host.removeAttribute('complete');
+      host.setAttribute('intensity', 'high');
+    } else if (val >= 34) {
+      host.removeAttribute('complete');
+      host.setAttribute('intensity', 'medium');
     } else {
-      this.removeAttribute('complete');
-      this.setAttribute('intensity', 'low');
+      host.removeAttribute('complete');
+      host.setAttribute('intensity', 'low');
     }
-  }
+  };
 
-  setValue(value) {
-    this.setAttribute('value', value.toString());
-    this.textContent = value.toString();
-  }
+  useEffect(() => {
+    updateProgress(value.value);
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'value') {
+          value.value = parseInt(host.getAttribute('value') || '0');
+          updateProgress(value.value);
+        }
+      });
+    });
+
+    observer.observe(host, { attributes: true });
+    
+    // Expose setValue method
+    host.setValue = (val) => {
+      host.setAttribute('value', val.toString());
+      value.value = val;
+      updateProgress(val);
+    };
+
+    return () => observer.disconnect();
+  }, []);
+
+  return html`
+    <${ErrorBoundary} name="AuroraProgress">
+      <div class="aurora-container">
+        <div class="aurora-track">
+          <div class="aurora-fill"></div>
+        </div>
+        <div class="aurora-label">
+          <span class="label-value">${value}</span>
+          <span class="label-unit">%</span>
+        </div>
+      </div>
+    <//>
+  `;
 }
 
-customElements.define('aurora-progress', AuroraProgress);
+createShadowComponent(AuroraProgress, { 
+  tag: 'aurora-progress', 
+  styleUrl: `${STYLES_PATH}/aurora-progress.css` 
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PRISM TABS - Light refracting tabs
 // ═══════════════════════════════════════════════════════════════════════════
 
-class PrismTabs extends HTMLElement {
-  connectedCallback() {
-    const tabs = this.querySelectorAll('.prism-tab');
-    const indicator = this.shadowRoot?.querySelector('.prism-indicator');
-    
-    tabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        // Trigger refraction effect
-        this.setAttribute('refracting', '');
-        
-        // Update active state
-        tabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
+function PrismTabs({ host }) {
+  const indicatorRef = useRef(null);
 
-        // Update indicator position
-        if (indicator) {
-          const tabRect = tab.getBoundingClientRect();
-          const containerRect = this.getBoundingClientRect();
-          this.style.setProperty('--indicator-left', `${tabRect.left - containerRect.left}px`);
-          this.style.setProperty('--indicator-width', `${tabRect.width}px`);
-          this.style.setProperty('--light-position', `${tabRect.left - containerRect.left + tabRect.width / 2}px`);
-          this.style.setProperty('--refraction-start', `${tabRect.left - containerRect.left}px`);
-          this.style.setProperty('--refraction-width', `${tabRect.width}px`);
-        }
+  useEffect(() => {
+    const updateIndicator = (tab) => {
+      const tabRect = tab.getBoundingClientRect();
+      const containerRect = host.getBoundingClientRect();
+      host.style.setProperty('--indicator-left', `${tabRect.left - containerRect.left}px`);
+      host.style.setProperty('--indicator-width', `${tabRect.width}px`);
+    };
 
-        setTimeout(() => this.removeAttribute('refracting'), 800);
+    const handleTabClick = (e) => {
+      const tab = e.target.closest('.prism-tab');
+      if (!tab) return;
 
-        this.dispatchEvent(new CustomEvent('tab-change', {
-          detail: { tab: tab.dataset.tab },
-          bubbles: true
-        }));
-      });
-    });
+      host.setAttribute('refracting', '');
+      
+      const tabs = host.querySelectorAll('.prism-tab');
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
 
-    // Initialize indicator position
-    const activeTab = this.querySelector('.prism-tab.active');
-    if (activeTab && indicator) {
-      const tabRect = activeTab.getBoundingClientRect();
-      const containerRect = this.getBoundingClientRect();
-      this.style.setProperty('--indicator-left', `${tabRect.left - containerRect.left}px`);
-      this.style.setProperty('--indicator-width', `${tabRect.width}px`);
+      updateIndicator(tab);
+
+      setTimeout(() => host.removeAttribute('refracting'), 800);
+
+      host.dispatchEvent(new CustomEvent('tab-change', {
+        detail: { tab: tab.dataset.tab },
+        bubbles: true
+      }));
+    };
+
+    // Initialize indicator
+    const activeTab = host.querySelector('.prism-tab.active');
+    if (activeTab) {
+      updateIndicator(activeTab);
     }
-  }
+
+    host.addEventListener('click', handleTabClick);
+    return () => host.removeEventListener('click', handleTabClick);
+  }, []);
+
+  return html`
+    <${ErrorBoundary} name="PrismTabs">
+      <div class="prism-container">
+        <div class="prism-track">
+          <slot></slot>
+        </div>
+        <div class="prism-indicator" ref=${indicatorRef}></div>
+      </div>
+    <//>
+  `;
 }
 
-customElements.define('prism-tabs', PrismTabs);
+createShadowComponent(PrismTabs, { 
+  tag: 'prism-tabs', 
+  styleUrl: `${STYLES_PATH}/prism-tabs.css` 
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ECHO TOOLTIP - Reverberating tooltip
 // ═══════════════════════════════════════════════════════════════════════════
 
-class EchoTooltip extends HTMLElement {
-  connectedCallback() {
-    const trigger = this.shadowRoot?.querySelector('.echo-trigger');
-    const textEl = this.shadowRoot?.querySelector('.echo-text');
-    const message = this.getAttribute('message') || '';
+function EchoTooltip({ host }) {
+  const message = host.getAttribute('message') || '';
 
-    if (textEl) {
-      textEl.textContent = message;
-    }
-
-    let echoTimeout;
-    
-    trigger?.addEventListener('mouseenter', () => {
-      echoTimeout = setTimeout(() => {
-        this.setAttribute('echoing', '');
-      }, 2000);
-    });
-
-    trigger?.addEventListener('mouseleave', () => {
-      clearTimeout(echoTimeout);
-      this.removeAttribute('echoing');
-    });
-  }
+  return html`
+    <${ErrorBoundary} name="EchoTooltip">
+      <div class="echo-trigger" tabindex="0">
+        <slot></slot>
+        <div class="echo-bubble">
+          <span class="echo-text">${message}</span>
+        </div>
+      </div>
+    <//>
+  `;
 }
 
-customElements.define('echo-tooltip', EchoTooltip);
+createShadowComponent(EchoTooltip, { 
+  tag: 'echo-tooltip', 
+  styleUrl: `${STYLES_PATH}/echo-tooltip.css` 
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MEMBRANE MODAL - Organic stretching modal
 // ═══════════════════════════════════════════════════════════════════════════
 
-class MembraneModal extends HTMLElement {
-  constructor() {
-    super();
-    this.isOpen = false;
-  }
+function MembraneModal({ host }) {
+  const isOpen = useSignal(false);
 
-  connectedCallback() {
-    const backdrop = this.shadowRoot?.querySelector('.membrane-backdrop');
-    const closeBtn = this.shadowRoot?.querySelector('.membrane-close');
-    const surface = this.shadowRoot?.querySelector('.membrane-surface');
-
-    closeBtn?.addEventListener('click', () => this.close());
-
-    // Note: Removed "click backdrop to close" per user request
-    // backdrop?.addEventListener('click', (e) => { ... });
-
-    surface?.addEventListener('click', (e) => {
-      const rect = surface.getBoundingClientRect();
-      this.style.setProperty('--touch-x', `${e.clientX - rect.left}px`);
-      this.style.setProperty('--touch-y', `${e.clientY - rect.top}px`);
-      this.setAttribute('touched', '');
-      setTimeout(() => this.removeAttribute('touched'), 600);
-    });
-
-    // Handle escape key
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.isOpen) {
-        this.close();
-      }
-    });
-  }
-
-  open() {
-    this.isOpen = true;
-    this.setAttribute('open', '');
-    this.setAttribute('opening', '');
-    setTimeout(() => this.removeAttribute('opening'), 600);
+  const open = () => {
+    isOpen.value = true;
+    host.setAttribute('open', '');
+    host.setAttribute('opening', '');
+    setTimeout(() => host.removeAttribute('opening'), 600);
     document.body.style.overflow = 'hidden';
-  }
+  };
 
-  close() {
-    this.setAttribute('closing', '');
+  const close = () => {
+    host.setAttribute('closing', '');
     setTimeout(() => {
-      this.isOpen = false;
-      this.removeAttribute('open');
-      this.removeAttribute('closing');
+      isOpen.value = false;
+      host.removeAttribute('open');
+      host.removeAttribute('closing');
       document.body.style.overflow = '';
     }, 400);
-  }
+  };
+
+  useEffect(() => {
+    const handleKeydown = (e) => {
+      if (e.key === 'Escape' && isOpen.value) {
+        close();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeydown);
+    
+    // Expose methods
+    host.open = open;
+    host.close = close;
+
+    return () => document.removeEventListener('keydown', handleKeydown);
+  }, []);
+
+  const handleSurfaceClick = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    host.style.setProperty('--touch-x', `${e.clientX - rect.left}px`);
+    host.style.setProperty('--touch-y', `${e.clientY - rect.top}px`);
+    host.setAttribute('touched', '');
+    setTimeout(() => host.removeAttribute('touched'), 600);
+  };
+
+  return html`
+    <${ErrorBoundary} name="MembraneModal">
+      <div class="membrane-backdrop">
+        <div class="membrane-surface" onClick=${handleSurfaceClick}>
+          <button class="membrane-close" type="button" onClick=${close}>
+            <span class="close-x">×</span>
+            <div class="close-ring"></div>
+          </button>
+          <div class="membrane-content">
+            <slot></slot>
+          </div>
+        </div>
+      </div>
+    <//>
+  `;
 }
 
-customElements.define('membrane-modal', MembraneModal);
+createShadowComponent(MembraneModal, { 
+  tag: 'membrane-modal', 
+  styleUrl: `${STYLES_PATH}/membrane-modal.css` 
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PAGE INTERACTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Tendril navigation
   const navNodes = document.querySelectorAll('.nav-node');
   const sections = document.querySelectorAll('.lab-section');
 
-  // Intersection observer for section visibility
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
@@ -749,7 +990,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   sections.forEach(section => observer.observe(section));
 
-  // Nav node click to scroll
   navNodes.forEach(node => {
     node.addEventListener('click', () => {
       const targetId = node.dataset.section;
@@ -758,7 +998,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Membrane modal trigger
   const modalTrigger = document.getElementById('membraneModalTrigger');
   const modal = document.getElementById('membraneModal');
 
@@ -766,21 +1005,18 @@ document.addEventListener('DOMContentLoaded', () => {
     modal?.open();
   });
 
-  // Close modal from inside button
   modal?.querySelector('breath-button')?.addEventListener('breath-click', () => {
     modal?.close();
   });
 
-  // Demo: Auto-update aurora progress
   const auroraProgress = document.getElementById('auroraProgress1');
   let progressValue = 67;
   
-  // Simulate progress changes on click
   auroraProgress?.addEventListener('click', () => {
     progressValue = (progressValue + 10) % 110;
     if (progressValue > 100) progressValue = 0;
     auroraProgress.setValue(progressValue);
   });
 
-  console.log('[Laboratory] Component showcase initialized');
+  console.log('[Laboratory] Component showcase initialized with HTM');
 });

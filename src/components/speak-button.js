@@ -8,120 +8,6 @@ import { createShadowComponent } from '../lib/shadow-component.js';
 import { ErrorBoundary } from '../lib/error-boundary.js';
 import { haptic } from '../services/haptic.js';
 
-const styles = `
-  /* Speak Button Component Styles */
-  /* HDR-enabled with OKLCH colors */
-
-  :host {
-    display: inline-block;
-    dynamic-range-limit: no-limit;
-    contain: content;
-  }
-
-  button {
-    position: relative;
-    background: transparent;
-    border: 1px solid var(--color-white-faint, oklch(1 0 0 / 0.4));
-    color: var(--color-white-soft, oklch(1 0 0 / 0.85));
-    padding: 0.75rem 2rem;
-    border-radius: 30px;
-    font-family: var(--font-body, 'Cormorant Garamond', serif);
-    font-size: 0.95rem;
-    font-weight: 400;
-    font-style: italic;
-    letter-spacing: 0.1em;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    animation: fade-in 1s ease forwards;
-    animation-delay: 0.8s;
-    opacity: 0;
-    overflow: hidden;
-  }
-
-  button:hover {
-    border-color: var(--color-white-soft, oklch(1 0 0 / 0.85));
-    color: var(--color-white, oklch(1 0 0));
-    background: oklch(1 0 0 / 0.05);
-    transform: scale(1.02);
-  }
-
-  button:active {
-    transform: scale(0.96);
-    transition: transform 0.08s ease;
-  }
-
-  button.listening {
-    border-color: var(--color-white, oklch(1 0 0));
-    color: var(--color-white, oklch(1 0 0));
-    background: oklch(1 0 0 / 0.1);
-    animation: fade-in 1s ease forwards, pulse 1.5s ease-in-out infinite;
-  }
-
-  button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    pointer-events: none;
-  }
-
-  /* Ripple effect */
-  .ripple {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    background: oklch(1 0 0 / 0.2);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-    opacity: 0;
-  }
-
-  button:active .ripple {
-    width: 200px;
-    height: 200px;
-    opacity: 1;
-    transition: width 0.08s ease, height 0.08s ease, opacity 0s;
-  }
-
-  @keyframes fade-in {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
-  }
-
-  /* HDR Enhancement */
-  @media (dynamic-range: high) {
-    button {
-      border-color: oklch(1.2 0 0 / 0.5);
-      color: var(--hdr-white-bright, oklch(1.15 0 0));
-    }
-
-    button:hover {
-      border-color: var(--hdr-white-vivid, oklch(1.3 0 0));
-      color: var(--hdr-white-peak, oklch(1.5 0 0));
-      box-shadow: 0 0 20px oklch(1.2 0 0 / 0.3);
-    }
-
-    button.listening {
-      border-color: var(--hdr-white-peak, oklch(1.5 0 0));
-      color: var(--hdr-white-peak, oklch(1.5 0 0));
-      box-shadow: 0 0 30px oklch(1.3 0 0 / 0.4);
-    }
-  }
-
-  @media (max-width: 700px) {
-    button {
-      padding: 0.6rem 1.5rem;
-      font-size: 0.9rem;
-    }
-  }
-`;
-
 function SpeakButton({ host }) {
   const buttonText = signal('tap to speak');
   const listening = signal(false);
@@ -229,6 +115,6 @@ function SpeakButton({ host }) {
 
 export default createShadowComponent(SpeakButton, {
   tag: 'speak-button',
-  styles,
+  styleUrl: './src/components/styles/speak-button.css',
   observedAttributes: ['listening', 'disabled'],
 });

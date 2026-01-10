@@ -15,81 +15,6 @@ import {
   transitionDirection
 } from '../services/navigation-signals.js';
 
-const styles = `
-  :host {
-    display: block;
-    contain: content;
-    width: 100vw;
-    height: 100vh;
-    overflow: hidden;
-  }
-
-  .app-container {
-    width: 100%;
-    height: 100%;
-    position: relative;
-  }
-
-  .app-view {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease, transform 0.3s ease;
-  }
-
-  .app-view.active {
-    opacity: 1;
-    visibility: visible;
-  }
-
-  .app-view.slide-in-right {
-    transform: translateX(100%);
-  }
-
-  .app-view.slide-in-right.active {
-    transform: translateX(0);
-  }
-
-  .modal-layer {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 100;
-  }
-
-  .modal-layer > * {
-    pointer-events: auto;
-  }
-
-  .crash-screen {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    padding: 2rem;
-    text-align: center;
-    background: var(--background, #1a1a1a);
-    color: var(--text, #fff);
-  }
-
-  .crash-screen h1 {
-    color: #ff3b30;
-    margin-bottom: 1rem;
-  }
-
-  .crash-screen button {
-    margin-top: 1rem;
-    padding: 0.75rem 1.5rem;
-    background: #ff3b30;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-`;
-
 // App component mapping for dynamic loading
 const APP_COMPONENTS = {
   voice: 'voice-view',
@@ -147,5 +72,5 @@ function ClawdOS1Shell({ host }) {
 
 export default createShadowComponent(ClawdOS1Shell, {
   tag: 'clawd-os1',
-  styles,
+  styleUrl: './src/components/styles/clawd-os1.css',
 });

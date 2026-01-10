@@ -7,55 +7,6 @@ import { useSignal } from '@preact/signals';
 import { createShadowComponent } from '../lib/shadow-component.js';
 import { ErrorBoundary } from '../lib/error-boundary.js';
 
-const styles = `
-  /* Transcription Display Component Styles */
-
-  :host {
-    display: block;
-    contain: content;
-    min-height: 3rem;
-    max-width: 320px;
-    text-align: center;
-    animation: fade-in 1s ease forwards;
-    animation-delay: 0.6s;
-    opacity: 0;
-  }
-
-  .text {
-    font-family: var(--font-body, 'Cormorant Garamond', serif);
-    font-size: 1.1rem;
-    font-weight: 300;
-    font-style: italic;
-    color: var(--color-white-soft, rgba(255, 255, 255, 0.85));
-    line-height: 1.5;
-    display: block;
-  }
-
-  :host([active]) .text {
-    color: var(--color-white, #FFFFFF);
-  }
-
-  .text.interim {
-    opacity: 0.7;
-  }
-
-  @keyframes fade-in {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  @media (max-width: 700px) {
-    :host {
-      max-width: 280px;
-      min-height: 2.5rem;
-    }
-
-    .text {
-      font-size: 1rem;
-    }
-  }
-`;
-
 function TranscriptionDisplay({ host }) {
   const text = useSignal('');
   const isInterim = useSignal(false);
@@ -111,6 +62,6 @@ function TranscriptionDisplay({ host }) {
 
 export default createShadowComponent(TranscriptionDisplay, {
   tag: 'transcription-display',
-  styles,
+  styleUrl: './src/components/styles/transcription-display.css',
   observedAttributes: ['active', 'interim'],
 });
