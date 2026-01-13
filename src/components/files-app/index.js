@@ -1,6 +1,7 @@
 /**
  * Files App Component
  * Spatial file browser with canvas-based layout
+ * Supports both AgentFS and /connections (local folders via File System Access API)
  */
 import { html } from 'htm/preact';
 import { useSignal, useComputed, useSignalEffect } from '@preact/signals';
@@ -28,8 +29,10 @@ const SYSTEM_FOLDERS = new Set([
   'memories', 'notes', 'conversations', 'favorites',
   'projects', 'documents', 'music', 'pictures',
   'videos', 'recordings', 'downloads', 'uploads',
-  'settings', 'temporary'
+  'settings', 'temporary', 'connections'
 ]);
+
+const CONNECTIONS_PREFIX = '/connections';
 
 // Helper functions for file type detection
 function isCodeFile(path) {
@@ -42,10 +45,23 @@ function isImageFile(path) {
   return ext && IMAGE_EXTENSIONS.has(ext);
 }
 
-function isDirectory(path) {
-  return agentfs.getAgent().then(agent =>
-    agent.fs.stat(path).then(stats => stats.isDirectory()).catch(() => false)
-  );
+/**
+ * Check if path is a directory using unified fs
+ */
+async function isDirectory(path) {
+  try {
+    const stats = await agentfs.stat(path);
+    return stats.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if a path is under /connections
+ */
+function isConnectionPath(path) {
+  return agentfs.isConnectionPath(path);
 }
 
 // Icon generation functions
@@ -119,6 +135,12 @@ function getSystemFolderIcon(name) {
     temporary: html`<svg viewBox="0 0 24 24">
       <circle cx="12" cy="12" r="10"/>
       <polyline points="12 6 12 12 16 14"/>
+    </svg>`,
+    connections: html`<svg viewBox="0 0 24 24">
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+      <line x1="8" y1="21" x2="16" y2="21"/>
+      <line x1="12" y1="17" x2="12" y2="21"/>
+      <path d="M7 8h4M7 11h6" opacity="0.5"/>
     </svg>`
   };
   return icons[name] || html`<svg viewBox="0 0 24 24">
@@ -182,6 +204,14 @@ function FilesApp({ host }) {
   const isLoading = useSignal(false);
   const title = useSignal('files');
   
+  // Connections state
+  const mounts = useSignal([]);  // List of connected folders/files
+  const isInConnections = useComputed(() => isConnectionPath(currentPath.value));
+  const isConnectionsRoot = useComputed(() => 
+    currentPath.value === CONNECTIONS_PREFIX || currentPath.value === CONNECTIONS_PREFIX + '/'
+  );
+  const connectionsSupported = agentfs.isConnectionsSupported();
+  
   // Internal folder navigation history
   const pathHistory = useSignal([]);  // Stack of visited paths
   const pathFuture = useSignal([]);   // Stack for forward navigation
@@ -214,6 +244,17 @@ function FilesApp({ host }) {
 
     try {
       await agentfs.init();
+      
+      // Load mounts for reference (used for metadata and actions)
+      if (connectionsSupported) {
+        try {
+          mounts.value = await agentfs.listConnections();
+        } catch (err) {
+          console.warn('[FilesApp] Failed to load mounts:', err);
+          mounts.value = [];
+        }
+      }
+      
       const entries = await agentfs.readdir(currentPath.value);
 
       const fileList = await Promise.all(
@@ -223,17 +264,39 @@ function FilesApp({ host }) {
             : `${currentPath.value}/${name}`;
 
           try {
-            const isDir = await isDirectory(fullPath);
+            const stats = await agentfs.stat(fullPath);
+            const isDir = stats.isDirectory();
+            const isLocal = isConnectionPath(fullPath);
+            
+            // Find mount metadata for top-level connections items
+            let mountInfo = null;
+            if (isConnectionsRoot.value) {
+              mountInfo = mounts.value.find(m => m.name === name);
+            }
+            
             return {
               name,
               path: fullPath,
-              type: isDir ? 'folder' : 'file'
+              type: isDir ? 'folder' : 'file',
+              isLocal,
+              mountInfo,
+              permissionState: mountInfo?.permissionState || 'granted'
             };
-          } catch {
+          } catch (err) {
+            // If stat fails (e.g., permission denied), still show the item
+            const isLocal = isConnectionPath(fullPath);
+            let mountInfo = null;
+            if (isConnectionsRoot.value) {
+              mountInfo = mounts.value.find(m => m.name === name);
+            }
+            
             return {
               name,
               path: fullPath,
-              type: 'file'
+              type: mountInfo?.kind === 'file' ? 'file' : 'folder',
+              isLocal,
+              mountInfo,
+              permissionState: mountInfo?.permissionState || 'prompt'
             };
           }
         })
@@ -346,6 +409,18 @@ function FilesApp({ host }) {
 
   // File interaction handlers
   const handleNodeClick = async (file) => {
+    // If this is a mount that needs permission, request it first
+    if (file.mountInfo && file.permissionState !== 'granted') {
+      const granted = await agentfs.requestConnectionPermission(file.mountInfo.id);
+      if (!granted) {
+        systemSounds.error();
+        return;
+      }
+      systemSounds.success();
+      // Reload to update permission state
+      await loadFiles();
+    }
+    
     if (file.type === 'folder') {
       await zoomIntoFolder(file);
     } else {
@@ -448,6 +523,18 @@ function FilesApp({ host }) {
       case 'delete':
         await deleteTarget(target);
         break;
+      case 'disconnect':
+        await handleDisconnect(target);
+        break;
+      case 'request-permission':
+        await handleRequestPermission(target);
+        break;
+      case 'copy-to-app':
+        await handleCopyToAppStorage(target);
+        break;
+      case 'save-to-computer':
+        await handleSaveToComputer(target);
+        break;
     }
   };
 
@@ -542,8 +629,151 @@ function FilesApp({ host }) {
       }
     }
 
-    const agent = await agentfs.getAgent();
-    await agent.fs.rmdir(path);
+    await agentfs.rmdir(path);
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Connections handlers
+  // ─────────────────────────────────────────────────────────────────────────
+  
+  /**
+   * Connect a new folder from the user's computer
+   */
+  const handleConnectFolder = async () => {
+    if (!connectionsSupported) return;
+    
+    try {
+      systemSounds.tap();
+      const result = await agentfs.connectFolder();
+      
+      if (result) {
+        systemSounds.success();
+        appContext.recordAction('files', 'connect-folder', { name: result.name });
+        await loadFiles();
+        
+        // Navigate to the new mount
+        if (result.mountPoint) {
+          await navigateTo(result.mountPoint);
+        }
+      }
+    } catch (err) {
+      console.error('[FilesApp] Failed to connect folder:', err);
+      systemSounds.error();
+    }
+  };
+  
+  /**
+   * Disconnect a mount (only removes reference, doesn't delete local files)
+   */
+  const handleDisconnect = async (target) => {
+    if (!target?.mountInfo?.id) return;
+    
+    const confirmed = confirm(
+      `Disconnect "${target.name}"?\n\nThis only removes the connection. Your files on your computer will not be deleted.`
+    );
+    if (!confirmed) return;
+    
+    try {
+      await agentfs.disconnectConnection(target.mountInfo.id);
+      systemSounds.confirm();
+      appContext.recordAction('files', 'disconnect', { name: target.name });
+      await loadFiles();
+    } catch (err) {
+      console.error('[FilesApp] Failed to disconnect:', err);
+      systemSounds.error();
+    }
+  };
+  
+  /**
+   * Request permission for a mount that needs access
+   */
+  const handleRequestPermission = async (target) => {
+    if (!target?.mountInfo?.id) return;
+    
+    try {
+      systemSounds.tap();
+      const granted = await agentfs.requestConnectionPermission(target.mountInfo.id);
+      
+      if (granted) {
+        systemSounds.success();
+        await loadFiles();
+      }
+    } catch (err) {
+      console.error('[FilesApp] Failed to request permission:', err);
+      systemSounds.error();
+    }
+  };
+  
+  /**
+   * Copy a local file to app storage (AgentFS)
+   */
+  const handleCopyToAppStorage = async (target) => {
+    if (!target?.isLocal) return;
+    
+    try {
+      systemSounds.tap();
+      
+      // Determine destination path (mirror structure in /uploads or same name)
+      const fileName = target.name;
+      const destPath = `/uploads/${fileName}`;
+      
+      if (target.type === 'file') {
+        const content = await agentfs.readFile(target.path);
+        await agentfs.writeFile(destPath, content);
+        systemSounds.success();
+        appContext.recordAction('files', 'copy-to-app', { from: target.path, to: destPath });
+      } else {
+        // For folders, we'd need recursive copy - simplified for now
+        alert('Copying folders is not yet supported. Please copy individual files.');
+      }
+    } catch (err) {
+      console.error('[FilesApp] Failed to copy to app storage:', err);
+      systemSounds.error();
+      alert(`Failed to copy: ${err.message}`);
+    }
+  };
+  
+  /**
+   * Save an app storage file to a connected folder
+   */
+  const handleSaveToComputer = async (target) => {
+    if (target?.isLocal || !connectionsSupported) return;
+    
+    // Check if we have any connections
+    if (mounts.value.length === 0) {
+      const shouldConnect = confirm(
+        'No connected folders yet.\n\nWould you like to connect a folder from your computer?'
+      );
+      if (shouldConnect) {
+        await handleConnectFolder();
+      }
+      return;
+    }
+    
+    // For now, use the first available directory mount
+    const dirMount = mounts.value.find(m => m.kind === 'directory' && m.permissionState === 'granted');
+    
+    if (!dirMount) {
+      alert('No connected folder available. Please connect a folder first or grant access to an existing one.');
+      return;
+    }
+    
+    try {
+      systemSounds.tap();
+      
+      const fileName = target.name;
+      const destPath = `${dirMount.mountPoint}/${fileName}`;
+      
+      const content = await agentfs.readFile(target.path);
+      await agentfs.writeFile(destPath, content);
+      
+      systemSounds.success();
+      appContext.recordAction('files', 'save-to-computer', { from: target.path, to: destPath });
+    } catch (err) {
+      console.error('[FilesApp] Failed to save to computer:', err);
+      systemSounds.error();
+      alert(`Failed to save: ${err.message}`);
+    }
   };
 
   // Zoom handlers
@@ -738,6 +968,13 @@ function FilesApp({ host }) {
             </span>
           `)}
         </div>
+        ${isInConnections.value && connectionsSupported && html`
+          <button class="connect-btn" type="button" onClick=${handleConnectFolder} title="Connect a folder from your computer">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </button>
+        `}
         <button class="close-btn" type="button" onClick=${handleClose}>
           <svg viewBox="0 0 24 24" fill="none">
             <line x1="6" y1="6" x2="18" y2="18" />
@@ -754,17 +991,35 @@ function FilesApp({ host }) {
             </div>
           ` : files.value.length === 0 ? html`
             <div class="empty-state">
-              <svg viewBox="0 0 24 24">
-                <path d="M3 7V17C3 18.1046 3.89543 19 5 19H19C20.1046 19 21 18.1046 21 17V9C21 7.89543 20.1046 7 19 7H13L11 5H5C3.89543 5 3 5.89543 3 7Z" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span class="empty-state-text">this space is empty</span>
+              ${isConnectionsRoot.value ? html`
+                <svg viewBox="0 0 24 24">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                  <line x1="8" y1="21" x2="16" y2="21"/>
+                  <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+                <span class="empty-state-text">no connected folders yet</span>
+                ${connectionsSupported && html`
+                  <button class="empty-state-btn" type="button" onClick=${handleConnectFolder}>
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    connect a folder
+                  </button>
+                `}
+              ` : html`
+                <svg viewBox="0 0 24 24">
+                  <path d="M3 7V17C3 18.1046 3.89543 19 5 19H19C20.1046 19 21 18.1046 21 17V9C21 7.89543 20.1046 7 19 7H13L11 5H5C3.89543 5 3 5.89543 3 7Z" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="empty-state-text">this space is empty</span>
+              `}
             </div>
           ` : files.value.map((file, index) => html`
             <div
-              class="node"
+              class=${`node ${file.isLocal ? 'node--local' : ''} ${file.permissionState === 'prompt' ? 'node--needs-access' : ''}`}
               data-path=${file.path}
               data-type=${file.type}
               data-name=${file.name}
+              data-local=${file.isLocal || undefined}
               tabindex="0"
               role="button"
               draggable="true"
@@ -782,6 +1037,8 @@ function FilesApp({ host }) {
                 ${file.type === 'folder' ? getFolderIcon(file.name) : getFileIcon(file.name)}
               </div>
               <span class="node-name" title=${file.name}>${file.name}</span>
+              ${file.isLocal && html`<span class="node-badge node-badge--local" title="On your computer">local</span>`}
+              ${file.permissionState === 'prompt' && html`<span class="node-badge node-badge--access" title="Click to grant access">needs access</span>`}
             </div>
           `)}
         </div>
@@ -799,6 +1056,17 @@ function FilesApp({ host }) {
           }}
           onClick=${(e) => e.stopPropagation()}
         >
+          ${/* Permission needed for mount */ ''}
+          ${selectedFile.value?.permissionState === 'prompt' && html`
+            <button class="context-menu-item context-menu-item--primary" onClick=${() => handleContextAction('request-permission')}>
+              <svg viewBox="0 0 24 24">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              grant access
+            </button>
+            <div class="context-menu-separator"></div>
+          `}
+          
           <button class="context-menu-item" onClick=${() => handleContextAction('open')}>
             <svg viewBox="0 0 24 24">
               <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z"/>
@@ -806,6 +1074,7 @@ function FilesApp({ host }) {
             </svg>
             open
           </button>
+          
           <button class="context-menu-item" onClick=${() => handleContextAction('copy')}>
             <svg viewBox="0 0 24 24">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
@@ -813,22 +1082,65 @@ function FilesApp({ host }) {
             </svg>
             copy
           </button>
-          <button class="context-menu-item" onClick=${() => handleContextAction('download')}>
-            <svg viewBox="0 0 24 24">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            download
-          </button>
+          
+          ${/* Local file: copy to app storage */ ''}
+          ${selectedFile.value?.isLocal && selectedFile.value?.type === 'file' && html`
+            <button class="context-menu-item" onClick=${() => handleContextAction('copy-to-app')}>
+              <svg viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              copy to app storage
+            </button>
+          `}
+          
+          ${/* App storage file: save to computer */ ''}
+          ${!selectedFile.value?.isLocal && selectedFile.value?.type === 'file' && connectionsSupported && html`
+            <button class="context-menu-item" onClick=${() => handleContextAction('save-to-computer')}>
+              <svg viewBox="0 0 24 24">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+                <line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+              save to computer
+            </button>
+          `}
+          
+          ${/* Download (for app storage) */ ''}
+          ${!selectedFile.value?.isLocal && html`
+            <button class="context-menu-item" onClick=${() => handleContextAction('download')}>
+              <svg viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              download
+            </button>
+          `}
+          
           <div class="context-menu-separator"></div>
-          <button class="context-menu-item context-menu-item--danger" onClick=${() => handleContextAction('delete')}>
-            <svg viewBox="0 0 24 24">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-            </svg>
-            delete
-          </button>
+          
+          ${/* Disconnect (for top-level mounts) */ ''}
+          ${selectedFile.value?.mountInfo && html`
+            <button class="context-menu-item" onClick=${() => handleContextAction('disconnect')}>
+              <svg viewBox="0 0 24 24">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+              disconnect
+            </button>
+          `}
+          
+          ${/* Delete (for non-mount items) */ ''}
+          ${!selectedFile.value?.mountInfo && html`
+            <button class="context-menu-item context-menu-item--danger" onClick=${() => handleContextAction('delete')}>
+              <svg viewBox="0 0 24 24">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+              delete
+            </button>
+          `}
         </div>
       `}
 

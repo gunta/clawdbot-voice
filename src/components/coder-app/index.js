@@ -215,6 +215,7 @@ function CoderApp({ host }) {
   const statusMessage = useSignal('');
   const language = useSignal('plaintext');
   const cursorPosition = useSignal('Ln 1, Col 1');
+  const isLocalFile = useSignal(false); // True if file is from /connections
 
   // Computed values
   const languageDisplayName = useComputed(() => getLanguageDisplayName(language.value));
@@ -384,6 +385,9 @@ function CoderApp({ host }) {
     fileName.value = path ? path.split('/').pop() : 'Untitled';
     isOpen.value = true;
     isLoading.value = true;
+    
+    // Check if this is a local file (from /connections)
+    isLocalFile.value = path ? agentfs.isConnectionPath(path) : false;
 
     // Update language
     language.value = getLanguageFromPath(path);
@@ -474,7 +478,7 @@ function CoderApp({ host }) {
       isDirty.value = false;
 
       systemSounds.success();
-      statusMessage.value = 'Saved';
+      statusMessage.value = isLocalFile.value ? 'Saved to computer' : 'Saved';
       setTimeout(() => { statusMessage.value = ''; }, 2000);
 
       host.dispatchEvent(new CustomEvent('coder-save', {
@@ -566,6 +570,7 @@ function CoderApp({ host }) {
           <span class=${`title ${isDirty.value ? 'dirty' : ''}`}>
             ${fileName.value}
           </span>
+          ${isLocalFile.value && html`<span class="local-badge">local</span>`}
           <span class="status">${statusMessage.value}</span>
         </div>
         <div class="header-right">

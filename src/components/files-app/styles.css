@@ -620,3 +620,216 @@
     justify-content: center;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Connected Files (/connections) Support
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Forward button (same style as back button) */
+.forward-btn {
+  background: transparent;
+  border: 1px solid oklch(1 0 0 / 0.35);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg, 30px);
+  transition: all 0.15s ease;
+  padding: 0.5rem 1.25rem;
+}
+
+.forward-btn:hover {
+  border-color: oklch(1 0 0 / 0.7);
+  background: oklch(1 0 0 / 0.1);
+  transform: scale(1.02);
+}
+
+.forward-btn:active {
+  transform: scale(0.96);
+  transition: transform 0.08s ease;
+}
+
+.forward-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.forward-btn:disabled:hover {
+  background: transparent;
+  border-color: oklch(1 0 0 / 0.35);
+}
+
+.forward-btn svg {
+  width: 1rem;
+  height: 1rem;
+  stroke: oklch(1 0 0 / 0.6);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  transition: stroke 0.15s ease;
+}
+
+.forward-btn:hover svg {
+  stroke: oklch(1 0 0 / 0.95);
+}
+
+/* Connect button (in header, when viewing /connections) */
+.connect-btn {
+  background: oklch(1 0 0 / 0.12);
+  border: 1px solid oklch(1 0 0 / 0.35);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  margin-right: 0.5rem;
+}
+
+.connect-btn:hover {
+  border-color: oklch(1 0 0 / 0.7);
+  background: oklch(1 0 0 / 0.2);
+  transform: scale(1.05);
+}
+
+.connect-btn:active {
+  transform: scale(0.95);
+}
+
+.connect-btn svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  stroke: oklch(1 0 0 / 0.7);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  transition: stroke 0.15s ease;
+}
+
+.connect-btn:hover svg {
+  stroke: oklch(1 0 0 / 0.95);
+}
+
+/* Node badges */
+.node-badge {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  font-family: var(--font-body, 'Cormorant Garamond', serif);
+  font-size: 0.65rem;
+  font-style: italic;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.5rem;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+}
+
+/* Position nodes relatively for badge placement */
+.node {
+  position: relative;
+}
+
+/* Local badge - subtle indicator for connected files */
+.node-badge--local {
+  background: oklch(0.5 0.12 200 / 0.25);
+  color: oklch(0.85 0.08 200);
+  border: 1px solid oklch(0.6 0.1 200 / 0.3);
+}
+
+/* Needs access badge */
+.node-badge--access {
+  background: oklch(0.5 0.15 50 / 0.3);
+  color: oklch(0.9 0.12 50);
+  border: 1px solid oklch(0.6 0.12 50 / 0.4);
+}
+
+/* Node that needs permission - slightly dimmed */
+.node--needs-access {
+  opacity: 0.75;
+}
+
+.node--needs-access:hover {
+  opacity: 1;
+}
+
+/* Local file/folder - subtle blue tint on icon */
+.node--local .node-icon svg {
+  stroke: oklch(0.85 0.06 220);
+}
+
+.node--local:hover .node-icon svg {
+  stroke: oklch(0.95 0.08 220);
+}
+
+/* Empty state button (for "connect a folder") */
+.empty-state-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: oklch(1 0 0 / 0.1);
+  border: 1px solid oklch(1 0 0 / 0.3);
+  border-radius: var(--radius-lg, 30px);
+  cursor: pointer;
+  font-family: var(--font-body, 'Cormorant Garamond', serif);
+  font-size: 0.95rem;
+  font-style: italic;
+  color: oklch(1 0 0 / 0.8);
+  letter-spacing: 0.04em;
+  transition: all 0.2s ease;
+  pointer-events: auto;
+}
+
+.empty-state-btn:hover {
+  background: oklch(1 0 0 / 0.18);
+  border-color: oklch(1 0 0 / 0.5);
+  color: oklch(1 0 0 / 0.95);
+  transform: scale(1.02);
+}
+
+.empty-state-btn:active {
+  transform: scale(0.98);
+}
+
+.empty-state-btn svg {
+  width: 1rem;
+  height: 1rem;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+/* Context menu primary action (e.g., "grant access") */
+.context-menu-item--primary {
+  background: oklch(0.45 0.12 220 / 0.2);
+  color: oklch(0.9 0.08 220);
+}
+
+.context-menu-item--primary:hover {
+  background: oklch(0.5 0.14 220 / 0.3);
+  color: oklch(1 0.06 220);
+}
+
+.context-menu-item--primary svg {
+  stroke: currentColor;
+}
+
+/* Disabled back button */
+.back-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.back-btn:disabled:hover {
+  background: transparent;
+  border-color: oklch(1 0 0 / 0.35);
+}

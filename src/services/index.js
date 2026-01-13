@@ -15,8 +15,11 @@ export { chimes } from './chimes.js';
 export { systemSounds } from './system-sounds.js';
 export { generateDateGreeting, getGreetingsCount } from './date-greetings.js';
 
-// AgentFS - Core OS Filesystem
-export * as agentfs from './agentfs.js';
+// AgentFS - Unified Filesystem (routes /connections → local, others → AgentFS)
+export * as agentfs from './fs.js';
+
+// Connections FS - Direct access (prefer using agentfs.* for routing)
+export * as connectionsFs from './connections-fs.js';
 
 // App Context - Inter-app state and communication
 export { appContext } from './app-context.js';

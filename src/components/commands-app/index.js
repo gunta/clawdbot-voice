@@ -1106,8 +1106,7 @@ export class CommandsApp extends HTMLElement {
     const newPath = this.#resolvePath(targetPath);
     
     try {
-      const agent = await agentfs.getAgent();
-      const stats = await agent.fs.stat(newPath);
+      const stats = await agentfs.stat(newPath);
       
       if (!stats.isDirectory()) {
         return { stdout: '', stderr: `cd: not a directory: ${path}`, exitCode: 1 };
@@ -1155,13 +1154,13 @@ export class CommandsApp extends HTMLElement {
       
       for (const path of targetPaths) {
         const resolvedPath = this.#resolvePath(path);
-        
+
         if (targetPaths.length > 1) {
           output += `${path}:\n`;
         }
-        
-        const entries = await agent.fs.readdirPlus(resolvedPath);
-        
+
+        const entries = await agentfs.readdirPlus(resolvedPath);
+
         // Filter hidden files
         let filtered = options.all 
           ? entries 
@@ -1318,10 +1317,8 @@ export class CommandsApp extends HTMLElement {
     
     for (const dir of dirs) {
       const resolvedPath = this.#resolvePath(dir);
-      
+
       try {
-        const agent = await agentfs.getAgent();
-        
         if (options.parents) {
           // Create parent directories as needed
           const parts = resolvedPath.split('/').filter(Boolean);
@@ -1329,7 +1326,7 @@ export class CommandsApp extends HTMLElement {
           for (const part of parts) {
             currentPath += '/' + part;
             try {
-              await agent.fs.mkdir(currentPath);
+              await agentfs.mkdir(currentPath);
               if (options.verbose) {
                 output += `mkdir: created directory '${currentPath}'\n`;
               }
@@ -1338,7 +1335,7 @@ export class CommandsApp extends HTMLElement {
             }
           }
         } else {
-          await agent.fs.mkdir(resolvedPath);
+          await agentfs.mkdir(resolvedPath);
           if (options.verbose) {
             output += `mkdir: created directory '${dir}'\n`;
           }
@@ -1378,10 +1375,9 @@ export class CommandsApp extends HTMLElement {
     
     for (const path of paths) {
       const resolvedPath = this.#resolvePath(path);
-      
+
       try {
-        const agent = await agentfs.getAgent();
-        await agent.fs.rm(resolvedPath, { recursive: options.recursive, force: options.force });
+        await agentfs.rm(resolvedPath, { recursive: options.recursive, force: options.force });
         if (options.verbose) {
           output += `removed '${path}'\n`;
         }
@@ -1416,10 +1412,9 @@ export class CommandsApp extends HTMLElement {
     
     for (const dir of dirs) {
       const resolvedPath = this.#resolvePath(dir);
-      
+
       try {
-        const agent = await agentfs.getAgent();
-        await agent.fs.rmdir(resolvedPath);
+        await agentfs.rmdir(resolvedPath);
         if (options.verbose) {
           output += `rmdir: removing directory, '${dir}'\n`;
         }
@@ -1446,9 +1441,9 @@ export class CommandsApp extends HTMLElement {
     
     for (const file of args) {
       if (file.startsWith('-')) continue;
-      
+
       const resolvedPath = this.#resolvePath(file);
-      
+
       try {
         const exists = await agentfs.exists(resolvedPath);
         if (!exists) {
@@ -1476,38 +1471,36 @@ export class CommandsApp extends HTMLElement {
     if (paths.length < 2) {
       return { stdout: '', stderr: 'cp: missing destination file operand', exitCode: 1 };
     }
-    
+
     const dest = paths[paths.length - 1];
     const sources = paths.slice(0, -1);
     const destPath = this.#resolvePath(dest);
-    
+
     let output = '';
-    
+
     try {
-      const agent = await agentfs.getAgent();
-      
       // Check if destination is a directory
       let destIsDir = false;
       try {
-        const destStat = await agent.fs.stat(destPath);
+        const destStat = await agentfs.stat(destPath);
         destIsDir = destStat.isDirectory();
       } catch (e) {
         if (e.code !== 'ENOENT') throw e;
       }
-      
+
       for (const src of sources) {
         const srcPath = this.#resolvePath(src);
-        const targetPath = destIsDir 
+        const targetPath = destIsDir
           ? destPath + '/' + src.split('/').pop()
           : destPath;
-        
-        await agent.fs.copyFile(srcPath, targetPath);
-        
+
+        await agentfs.copyFile(srcPath, targetPath);
+
         if (options.verbose) {
           output += `'${src}' -> '${targetPath}'\n`;
         }
       }
-      
+
       return { stdout: output, stderr: '', exitCode: 0 };
     } catch (err) {
       if (err.code === 'ENOENT') {
@@ -1525,42 +1518,40 @@ export class CommandsApp extends HTMLElement {
       'force': { short: 'f', type: 'boolean', default: false },
       'verbose': { short: 'v', type: 'boolean', default: false }
     });
-    
+
     if (paths.length < 2) {
       return { stdout: '', stderr: 'mv: missing destination file operand', exitCode: 1 };
     }
-    
+
     const dest = paths[paths.length - 1];
     const sources = paths.slice(0, -1);
     const destPath = this.#resolvePath(dest);
-    
+
     let output = '';
-    
+
     try {
-      const agent = await agentfs.getAgent();
-      
       // Check if destination is a directory
       let destIsDir = false;
       try {
-        const destStat = await agent.fs.stat(destPath);
+        const destStat = await agentfs.stat(destPath);
         destIsDir = destStat.isDirectory();
       } catch (e) {
         if (e.code !== 'ENOENT') throw e;
       }
-      
+
       for (const src of sources) {
         const srcPath = this.#resolvePath(src);
-        const targetPath = destIsDir 
+        const targetPath = destIsDir
           ? destPath + '/' + src.split('/').pop()
           : destPath;
-        
-        await agent.fs.rename(srcPath, targetPath);
-        
+
+        await agentfs.rename(srcPath, targetPath);
+
         if (options.verbose) {
           output += `renamed '${src}' -> '${targetPath}'\n`;
         }
       }
-      
+
       return { stdout: output, stderr: '', exitCode: 0 };
     } catch (err) {
       if (err.code === 'ENOENT') {
@@ -1628,9 +1619,8 @@ export class CommandsApp extends HTMLElement {
       const resolvedPath = this.#resolvePath(file);
       
       try {
-        const agent = await agentfs.getAgent();
-        const stats = await agent.fs.stat(resolvedPath);
-        
+        const stats = await agentfs.stat(resolvedPath);
+
         const type = stats.isDirectory() ? 'directory' : 'regular file';
         const size = stats.size;
         const atime = new Date(stats.atime * 1000).toISOString();
@@ -1670,9 +1660,8 @@ export class CommandsApp extends HTMLElement {
       const resolvedPath = this.#resolvePath(file);
       
       try {
-        const agent = await agentfs.getAgent();
-        const stats = await agent.fs.stat(resolvedPath);
-        
+        const stats = await agentfs.stat(resolvedPath);
+
         if (stats.isDirectory()) {
           output += `${file}: directory\n`;
         } else {
@@ -1731,9 +1720,8 @@ export class CommandsApp extends HTMLElement {
       if (level >= maxLevel) return;
       
       try {
-        const agent = await agentfs.getAgent();
-        let entries = await agent.fs.readdirPlus(path);
-        
+        let entries = await agentfs.readdirPlus(path);
+
         if (!options.all) {
           entries = entries.filter(e => !e.name.startsWith('.'));
         }
@@ -1804,9 +1792,8 @@ export class CommandsApp extends HTMLElement {
       if (depth > maxDepth) return;
       
       try {
-        const agent = await agentfs.getAgent();
-        const entries = await agent.fs.readdirPlus(path);
-        
+        const entries = await agentfs.readdirPlus(path);
+
         for (const entry of entries) {
           const fullPath = path + '/' + entry.name;
           const isDir = entry.stats.isDirectory();
@@ -1861,10 +1848,10 @@ export class CommandsApp extends HTMLElement {
     const calculateSize = async (path, depth = 0) => {
       try {
         const agent = await agentfs.getAgent();
-        const stats = await agent.fs.stat(path);
-        
+        const stats = await agentfs.stat(path);
+
         if (stats.isDirectory()) {
-          const entries = await agent.fs.readdirPlus(path);
+          const entries = await agentfs.readdirPlus(path);
           let dirSize = 0;
           
           for (const entry of entries) {

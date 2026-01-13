@@ -9,7 +9,8 @@
  * @module AgentTools
  */
 
-import * as agentfs from './agentfs.js';
+// Use the unified filesystem (routes /connections to local files)
+import * as agentfs from './fs.js';
 import { navigationService } from './navigation-service.js';
 import { appContext } from './app-context.js';
 import { pluginLoader } from './plugin-loader.js';

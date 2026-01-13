@@ -22,6 +22,7 @@ function TextEditor({ host }) {
   const fileInfo = useSignal('');
   const cursorPosition = useSignal('Ln 1, Col 1');
   const isOpen = useSignal(false);
+  const isLocalFile = useSignal(false); // True if file is from /connections
 
   // Refs
   const editorRef = useRef(null);
@@ -33,6 +34,9 @@ function TextEditor({ host }) {
     filePath.value = path;
     isOpen.value = true;
     host.setAttribute('open', '');
+    
+    // Check if this is a local file (from /connections)
+    isLocalFile.value = agentfs.isConnectionPath(path);
 
     // Play open sound
     systemSounds.open();
@@ -131,7 +135,7 @@ function TextEditor({ host }) {
       // Play save sound
       systemSounds.success();
 
-      status.value = 'Saved';
+      status.value = isLocalFile.value ? 'Saved to computer' : 'Saved';
       setTimeout(() => { status.value = ''; }, 2000);
 
       // Dispatch event
@@ -288,6 +292,7 @@ function TextEditor({ host }) {
         </div>
         <div class="title-area">
           <span class="${'title' + (isDirty.value ? ' dirty' : '')}">${fileName.value}</span>
+          ${isLocalFile.value && html`<span class="local-badge">local</span>`}
           <span class="status">${status.value}</span>
         </div>
         <div class="header-right">
