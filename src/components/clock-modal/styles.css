@@ -173,7 +173,8 @@
   stroke: var(--color-white, oklch(1 0 0 / 0.95));
   stroke-linecap: round;
   fill: none;
-  transform-origin: center;
+  /* Transform-origin must be at clock center (200,200) in SVG coordinates */
+  transform-origin: 200px 200px;
 }
 
 .hand-hour {

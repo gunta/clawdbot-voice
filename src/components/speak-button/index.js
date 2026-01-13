@@ -3,34 +3,43 @@
  * Main interaction button for voice input
  */
 import { html } from 'htm/preact';
-import { signal, useSignalEffect } from '@preact/signals';
+import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
+import { useEffect, useRef } from 'preact/hooks';
 import { createShadowComponent } from '../shared/shadow-component.js';
 import { ErrorBoundary } from '../shared/error-boundary.js';
 import { haptic } from '../../services/haptic.js';
 
-function SpeakButton({ host }) {
-  const buttonText = signal('tap to speak');
-  const listening = signal(false);
-  const disabled = signal(false);
-  const defaultText = signal('tap to speak');
+function SpeakButton({ host, listening: listeningAttr, disabled: disabledAttr }) {
+  const defaultText = useSignal('tap to speak');
+  const listening = useSignal(false);
+  const disabled = useSignal(false);
+  const prevListeningRef = useRef(false);
 
-  // Initialize default text from host's textContent
-  if (host.textContent?.trim()) {
-    defaultText.value = host.textContent.trim();
-    buttonText.value = defaultText.value;
-  }
+  // Derive display text from state
+  const buttonText = useComputed(() => (listening.value ? 'listening...' : defaultText.value));
 
-  // Watch for listening state changes and provide haptic feedback
-  let previousListening = false;
+  // Initialize default text from host's light DOM once
+  useEffect(() => {
+    const initial = host.textContent?.trim();
+    if (initial) defaultText.value = initial;
+  }, []);
+
+  // Keep internal state in sync with observed attributes
+  useEffect(() => {
+    listening.value = listeningAttr !== undefined;
+  }, [listeningAttr]);
+
+  useEffect(() => {
+    disabled.value = disabledAttr !== undefined;
+  }, [disabledAttr]);
+
+  // Haptic feedback on listening start
   useSignalEffect(() => {
     const isListening = listening.value;
-    buttonText.value = isListening ? 'listening...' : defaultText.value;
-
-    // Haptic feedback on state change
-    if (isListening && !previousListening) {
+    if (isListening && !prevListeningRef.current) {
       haptic('success'); // Started listening
     }
-    previousListening = isListening;
+    prevListeningRef.current = isListening;
   });
 
   const handleTouchStart = () => {
@@ -56,12 +65,9 @@ function SpeakButton({ host }) {
       configurable: true,
       get: () => listening.value,
       set: (value) => {
-        listening.value = Boolean(value);
-        if (value) {
-          host.setAttribute('listening', '');
-        } else {
-          host.removeAttribute('listening');
-        }
+        const next = Boolean(value);
+        listening.value = next;
+        host.toggleAttribute('listening', next);
       },
     });
   }
@@ -71,31 +77,12 @@ function SpeakButton({ host }) {
       configurable: true,
       get: () => disabled.value,
       set: (value) => {
-        disabled.value = Boolean(value);
-        if (value) {
-          host.setAttribute('disabled', '');
-        } else {
-          host.removeAttribute('disabled');
-        }
+        const next = Boolean(value);
+        disabled.value = next;
+        host.toggleAttribute('disabled', next);
       },
     });
   }
-
-  // Watch for attribute changes
-  const attributeObserver = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.type === 'attributes') {
-        const attrName = mutation.attributeName;
-        if (attrName === 'listening') {
-          listening.value = host.hasAttribute('listening');
-        } else if (attrName === 'disabled') {
-          disabled.value = host.hasAttribute('disabled');
-        }
-      }
-    });
-  });
-
-  attributeObserver.observe(host, { attributes: true });
 
   return html`
     <${ErrorBoundary} name="SpeakButton">
@@ -113,8 +100,10 @@ function SpeakButton({ host }) {
   `;
 }
 
-export default createShadowComponent(SpeakButton, {
+const speakButtonOptions = {
   tag: 'speak-button',
   styleUrl: new URL('./styles.css', import.meta.url).href,
   observedAttributes: ['listening', 'disabled'],
-});
+};
+
+export default createShadowComponent(SpeakButton, speakButtonOptions);

@@ -12,7 +12,7 @@
  * - Transition animations coordination
  */
 
-import { createMachine, assign } from 'https://esm.sh/xstate@5';
+import { createMachine, assign } from 'xstate';
 
 /** @typedef {import('../types.js').WindowRef} WindowRef */
 /** @typedef {import('../types.js').ModalRef} ModalRef */

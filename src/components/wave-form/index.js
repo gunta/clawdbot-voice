@@ -6,10 +6,9 @@ import { html } from 'htm/preact';
 import { useSignal, useSignalEffect } from '@preact/signals';
 import { useRef, useEffect } from 'preact/hooks';
 import { createShadowComponent } from '../shared/shadow-component.js';
-import { ErrorBoundary } from '../shared/error-boundary.js';
 import { audioAnalyzer } from '../../services/audio-analyzer.js';
 
-function WaveForm({ host, bars = 7 }) {
+function WaveForm({ host, bars = 7, active }) {
   const isActive = useSignal(false);
   const barCount = parseInt(bars) || 7;
   const barRefs = useRef([]);
@@ -46,7 +45,12 @@ function WaveForm({ host, bars = 7 }) {
     return () => {
       audioAnalyzer.removeEventListener('levels', handleLevels);
     };
-  }, [isActive.value]);
+  }, []);
+
+  // Sync active state from observed attribute
+  useEffect(() => {
+    isActive.value = active !== undefined;
+  }, [active]);
 
   // Reset bars when becoming inactive
   useSignalEffect(() => {
@@ -74,17 +78,15 @@ function WaveForm({ host, bars = 7 }) {
     }
   }, []);
 
-  return html`
-    <${ErrorBoundary} name="WaveForm">
-      ${Array.from({ length: barCount }, (_, i) => html`
-        <div
-          key=${i}
-          class="bar"
-          ref=${(el) => { barRefs.current[i] = el; }}
-        ></div>
-      `)}
-    <//>
-  `;
+  // Note: Don't wrap bars in ErrorBoundary - CSS :nth-child selectors
+  // need bars to be direct children of shadow root
+  return Array.from({ length: barCount }, (_, i) => html`
+    <div
+      key=${i}
+      class="bar"
+      ref=${(el) => { barRefs.current[i] = el; }}
+    ></div>
+  `);
 }
 
 export default createShadowComponent(WaveForm, {

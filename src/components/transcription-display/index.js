@@ -4,12 +4,18 @@
  */
 import { html } from 'htm/preact';
 import { useSignal } from '@preact/signals';
+import { useEffect } from 'preact/hooks';
 import { createShadowComponent } from '../shared/shadow-component.js';
 import { ErrorBoundary } from '../shared/error-boundary.js';
 
-function TranscriptionDisplay({ host }) {
+function TranscriptionDisplay({ host, interim }) {
   const text = useSignal('');
   const isInterim = useSignal(false);
+
+  // Keep internal state in sync with observed attribute changes
+  useEffect(() => {
+    isInterim.value = interim !== undefined;
+  }, [interim]);
 
   // Expose methods for external control
   host.update = (newText, interim = false) => {

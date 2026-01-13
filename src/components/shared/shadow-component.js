@@ -36,16 +36,21 @@ baseStyles.replaceSync(`
 `);
 
 /**
+ * @typedef {Object} ShadowComponentOptions
+ * @property {string} tag - Custom element tag name to register
+ * @property {string} [styles] - Inline CSS styles to inject (legacy)
+ * @property {string} [styleUrl] - URL to CSS file (preferred for syntax highlighting)
+ * @property {Array<string>} [observedAttributes] - Attributes to observe and pass as props
+ */
+
+/**
  * Creates a custom element that renders a Preact component inside Shadow DOM
  * @param {Function} Component - Preact functional component
- * @param {Object} options - Configuration options
- * @param {string} [options.styles] - Inline CSS styles to inject (legacy)
- * @param {string} [options.styleUrl] - URL to CSS file (preferred for syntax highlighting)
- * @param {string} options.tag - Custom element tag name to register
+ * @param {{ tag: string, styles?: string, styleUrl?: string, observedAttributes?: Array<string> }} options - Configuration options
  * @returns {HTMLElement} Custom element class
  */
 export function createShadowComponent(Component, options = {}) {
-  const { styles = '', styleUrl, tag } = options;
+  const { styles = '', styleUrl, tag, observedAttributes = [] } = options;
 
   // If inline styles provided, create a stylesheet for them
   let inlineSheet = null;
@@ -57,17 +62,33 @@ export function createShadowComponent(Component, options = {}) {
   class ShadowElement extends HTMLElement {
     constructor() {
       super();
-      this.attachShadow({ mode: 'open' });
+      // Support Declarative Shadow DOM (DSD) by reusing an existing shadowRoot
+      // if one was created from a <template shadowrootmode="..."> in HTML.
+      if (!this.shadowRoot) {
+        this.attachShadow({ mode: 'open' });
+      }
       this._props = {};
       this._stylesLoaded = false;
+      this._initialRenderDone = false;
     }
 
     async connectedCallback() {
+      // Capture initial observed attributes into props so first render matches HTML.
+      if (Array.isArray(observedAttributes) && observedAttributes.length > 0) {
+        for (const attr of observedAttributes) {
+          if (!(attr in this._props) && this.hasAttribute(attr)) {
+            this._props[attr] = this.getAttribute(attr);
+          }
+        }
+      }
+
       // Apply base styles immediately
       this.shadowRoot.adoptedStyleSheets = [baseStyles];
       
       if (styleUrl) {
-        // Load external stylesheet
+        // Always load external stylesheet into adoptedStyleSheets.
+        // Even if DSD provided a <link>, Preact render() will wipe it out,
+        // so we need styles in adoptedStyleSheets to persist across renders.
         try {
           const sheet = await loadStyleSheet(styleUrl);
           this.shadowRoot.adoptedStyleSheets = [baseStyles, sheet];
@@ -80,6 +101,15 @@ export function createShadowComponent(Component, options = {}) {
       }
       
       this._stylesLoaded = true;
+      
+      // Clear any DSD content before first Preact render to avoid duplicates.
+      // Preact's render() diffs against existing DOM, so pre-rendered DSD content
+      // can persist alongside Preact's output if not cleared.
+      if (!this._initialRenderDone) {
+        this.shadowRoot.innerHTML = '';
+        this._initialRenderDone = true;
+      }
+      
       this._render();
     }
 
@@ -104,12 +134,16 @@ export function createShadowComponent(Component, options = {}) {
      * Observe attribute changes and convert to props
      */
     static get observedAttributes() {
-      return [];
+      return Array.isArray(observedAttributes) ? observedAttributes : [];
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
       if (oldValue !== newValue) {
-        this._props[name] = newValue;
+        if (newValue === null) {
+          delete this._props[name];
+        } else {
+          this._props[name] = newValue;
+        }
         this._render();
       }
     }

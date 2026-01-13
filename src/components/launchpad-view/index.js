@@ -85,7 +85,7 @@ function searchApps(query) {
   // Search apps
   for (const app of APP_DATA) {
     const nameMatch = app.name.toLowerCase().includes(lowerQuery);
-    const aliasMatch = app.aliases.some(a => a.includes(lowerQuery));
+    const aliasMatch = app.aliases.some(a => a.toLowerCase().includes(lowerQuery));
 
     if (nameMatch || aliasMatch) {
       results.push({
@@ -316,7 +316,7 @@ function LaunchpadView({ host }) {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  });
+  }, []);
 
   // Expose methods
   host.open = () => {

@@ -3,12 +3,10 @@
  * Spatial file browser with canvas-based layout
  */
 import { html } from 'htm/preact';
-import { signal, computed } from '@preact/signals';
 import { useSignal, useComputed, useSignalEffect } from '@preact/signals';
 import { useRef, useEffect } from 'preact/hooks';
 import { createShadowComponent } from '../shared/shadow-component.js';
 import { ErrorBoundary } from '../shared/error-boundary.js';
-import { navigate, canGoBack, canGoForward } from '../../services/navigation-signals.js';
 import { agentfs, appContext, systemSounds, navigationService } from '../../services/index.js';
 
 // Constants
@@ -183,6 +181,12 @@ function FilesApp({ host }) {
   const zoomIndicatorVisible = useSignal(false);
   const isLoading = useSignal(false);
   const title = useSignal('files');
+  
+  // Internal folder navigation history
+  const pathHistory = useSignal([]);  // Stack of visited paths
+  const pathFuture = useSignal([]);   // Stack for forward navigation
+  const canNavigateBack = useComputed(() => pathHistory.value.length > 0);
+  const canNavigateForward = useComputed(() => pathFuture.value.length > 0);
 
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -269,13 +273,38 @@ function FilesApp({ host }) {
   };
 
   const handleBack = () => {
-    if (canGoBack.value) {
+    if (canNavigateBack.value) {
       systemSounds.back();
-      navigationService.back();
+      // Push current path to future stack
+      pathFuture.value = [currentPath.value, ...pathFuture.value];
+      // Pop from history
+      const [prevPath, ...rest] = pathHistory.value;
+      pathHistory.value = rest;
+      currentPath.value = prevPath;
+      loadFiles();
     }
   };
 
-  const navigateTo = async (path) => {
+  const handleForward = () => {
+    if (canNavigateForward.value) {
+      systemSounds.tap();
+      // Push current path to history stack
+      pathHistory.value = [currentPath.value, ...pathHistory.value];
+      // Pop from future
+      const [nextPath, ...rest] = pathFuture.value;
+      pathFuture.value = rest;
+      currentPath.value = nextPath;
+      loadFiles();
+    }
+  };
+
+  const navigateTo = async (path, addToHistory = true) => {
+    if (addToHistory && currentPath.value !== path) {
+      // Push current path to history before navigating
+      pathHistory.value = [currentPath.value, ...pathHistory.value];
+      // Clear future stack on new navigation
+      pathFuture.value = [];
+    }
     currentPath.value = path;
     appContext.recordAction('files', 'navigate', { path });
     await loadFiles();
@@ -292,6 +321,10 @@ function FilesApp({ host }) {
     canvas.style.opacity = '0';
 
     await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Add current path to history
+    pathHistory.value = [currentPath.value, ...pathHistory.value];
+    pathFuture.value = [];
 
     const segments = currentPath.value.split('/').filter(Boolean);
     segments.pop();
@@ -331,6 +364,10 @@ function FilesApp({ host }) {
     canvas.style.opacity = '0';
 
     await new Promise(resolve => setTimeout(resolve, 400));
+
+    // Add current path to history before navigating into folder
+    pathHistory.value = [currentPath.value, ...pathHistory.value];
+    pathFuture.value = [];
 
     currentPath.value = file.path;
     zoom.value = 1;
@@ -670,8 +707,7 @@ function FilesApp({ host }) {
             class="back-btn"
             type="button"
             onClick=${handleBack}
-            disabled=${!canGoBack.value}
-            style=${{ display: canGoBack.value ? '' : 'none' }}
+            disabled=${!canNavigateBack.value}
             aria-label="Go back"
           >
             <svg viewBox="0 0 24 24" fill="none">
@@ -681,9 +717,8 @@ function FilesApp({ host }) {
           <button
             class="forward-btn"
             type="button"
-            onClick=${() => navigate.forward()}
-            disabled=${!canGoForward.value}
-            style=${{ display: canGoForward.value ? '' : 'none' }}
+            onClick=${handleForward}
+            disabled=${!canNavigateForward.value}
             aria-label="Go forward"
           >
             <svg viewBox="0 0 24 24" fill="none">

@@ -14,8 +14,11 @@ export class ErrorBoundary extends Component {
   state = {
     error: null,
     errorInfo: null,
-    lastKnownGood: null
+    useLastKnownGood: false
   };
+
+  /** @type {any} */
+  _lastKnownGood = null;
 
   /**
    * Derive error state from caught error
@@ -32,34 +35,25 @@ export class ErrorBoundary extends Component {
     console.error('[ErrorBoundary] Component stack:', errorInfo?.componentStack);
 
     this.setState({ errorInfo });
-
-    // Store last known good state for potential rollback
-    if (!this.state.error && this.props.children) {
-      this.setState({ lastKnownGood: this.props.children });
-    }
   }
 
   /**
    * Reset error state and retry rendering
    */
   retry = () => {
-    this.setState({ error: null, errorInfo: null });
+    this.setState({ error: null, errorInfo: null, useLastKnownGood: false });
   };
 
   /**
    * Rollback to last known good state if available
    */
   rollback = () => {
-    if (this.state.lastKnownGood) {
-      this.setState({
-        error: null,
-        errorInfo: null,
-        children: this.state.lastKnownGood
-      });
+    if (this._lastKnownGood) {
+      this.setState({ error: null, errorInfo: null, useLastKnownGood: true });
     }
   };
 
-  render({ children, fallback, name = 'Component' }, { error, errorInfo }) {
+  render({ children, fallback, name = 'Component' }, { error, errorInfo, useLastKnownGood }) {
     if (error) {
       // Use custom fallback if provided
       if (fallback) {
@@ -69,7 +63,7 @@ export class ErrorBoundary extends Component {
               errorInfo,
               retry: this.retry,
               rollback: this.rollback,
-              hasLastKnownGood: !!this.state.lastKnownGood
+              hasLastKnownGood: !!this._lastKnownGood
             })
           : fallback;
       }
@@ -105,7 +99,7 @@ export class ErrorBoundary extends Component {
             >
               Retry
             </button>
-            ${this.state.lastKnownGood && html`
+            ${this._lastKnownGood && html`
               <button
                 onClick=${this.rollback}
                 style=${{
@@ -126,7 +120,12 @@ export class ErrorBoundary extends Component {
       `;
     }
 
-    return children;
+    // Capture last-known-good render so rollback can bypass a failing update.
+    if (!useLastKnownGood) {
+      this._lastKnownGood = children;
+    }
+
+    return useLastKnownGood && this._lastKnownGood ? this._lastKnownGood : children;
   }
 }
 

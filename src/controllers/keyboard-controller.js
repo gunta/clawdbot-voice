@@ -23,8 +23,11 @@ class KeyboardController {
   }
 
   #handleKeydown(e) {
+    const key = typeof e.key === 'string' ? e.key : '';
+    const keyLower = key.toLowerCase();
+
     // Cmd+K / Ctrl+K opens Command Palette (launchpad)
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && keyLower === 'k') {
       e.preventDefault();
       const launchpad = document.getElementById('launchpad');
       launchpad?.toggle();
@@ -32,38 +35,53 @@ class KeyboardController {
     }
     
     // Cmd+P / Ctrl+P also opens Command Palette (VS Code style)
-    if ((e.metaKey || e.ctrlKey) && e.key === 'p' && !e.shiftKey) {
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && keyLower === 'p' && !e.shiftKey) {
       e.preventDefault();
       const launchpad = document.getElementById('launchpad');
       launchpad?.toggle();
       return;
     }
     
-    // Ignore if typing in input (except for command palette input)
-    if (e.target.matches('input:not(.command-input), textarea')) return;
-    
-    // Ignore if Commands app is open (terminal needs keyboard input)
+    // Ignore if typing in any editable surface (inputs, textareas, contenteditable, etc)
+    const target = e.target;
+    const isEditableTarget = target instanceof Element && (
+      target.matches('input, textarea, select, [contenteditable="true"], [contenteditable="plaintext-only"]') ||
+      target.closest('input, textarea, select, [contenteditable="true"], [contenteditable="plaintext-only"]') ||
+      target.isContentEditable
+    );
+    if (isEditableTarget) return;
+
+    // Ignore if apps that require full keyboard input are open
     const commandsApp = document.getElementById('commandsApp');
     if (commandsApp?.hasAttribute('open')) return;
 
-    switch (e.key) {
-      // TODO: Disable for now
-      // case ' ':
-      //   e.preventDefault();
-      //   this.#handlers.onSpace?.();
-      //   break;
+    const coderApp = document.getElementById('coderApp');
+    if (coderApp?.hasAttribute('open')) return;
 
-      // case '1':
-      //   this.#handlers.onOne?.();
-      //   break;
+    const textEditor = document.getElementById('textEditor');
+    if (textEditor?.hasAttribute('open')) return;
 
-      // case '2':
-      //   this.#handlers.onTwo?.();
-      //   break;
+    if (e.code === 'Space') {
+      // Avoid repeated toggles when key is held
+      if (e.repeat) return;
+      e.preventDefault();
+      this.#handlers.onSpace?.();
+      return;
+    }
 
-      case 'Escape':
-        this.#handlers.onEscape?.();
-        break;
+    if (key === '1') {
+      this.#handlers.onOne?.();
+      return;
+    }
+
+    if (key === '2') {
+      this.#handlers.onTwo?.();
+      return;
+    }
+
+    if (key === 'Escape') {
+      this.#handlers.onEscape?.();
+      return;
     }
   }
 }

@@ -32,7 +32,7 @@
 /** @typedef {import('../types.js').WindowChangeDetail} WindowChangeDetail */
 /** @typedef {import('../types.js').ModalChangeDetail} ModalChangeDetail */
 
-import { createActor } from 'https://esm.sh/xstate@5';
+import { createActor } from 'xstate';
 import { navigationMachine, navigationEvents } from '../machines/navigation-machine.js';
 
 class NavigationService extends EventTarget {

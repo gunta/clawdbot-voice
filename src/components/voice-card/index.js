@@ -4,7 +4,7 @@
  * Includes audio-reactive line animations
  */
 import { html } from 'htm/preact';
-import { signal } from '@preact/signals';
+import { useSignal, useSignalEffect } from '@preact/signals';
 import { useRef, useEffect } from 'preact/hooks';
 import { createShadowComponent } from '../shared/shadow-component.js';
 import { ErrorBoundary } from '../shared/error-boundary.js';
@@ -12,8 +12,8 @@ import { haptic } from '../../services/haptic.js';
 import { audioAnalyzer } from '../../services/audio-analyzer.js';
 
 function VoiceCard({ host, voice, audioSrc, delay }) {
-  const isPlaying = signal(false);
-  const isSelected = signal(false);
+  const isPlaying = useSignal(false);
+  const isSelected = useSignal(false);
   const svgContainerRef = useRef(null);
   const linesRef = useRef([]);
 
@@ -100,11 +100,16 @@ function VoiceCard({ host, voice, audioSrc, delay }) {
     }
   };
 
-  // Setup audio analyzer listener
+  // Setup audio analyzer listener and host event handlers
   useEffect(() => {
     // Set role and tabindex on host
     host.setAttribute('role', 'button');
     host.setAttribute('tabindex', '0');
+
+    // Add click/touch/keyboard handlers to host element
+    host.addEventListener('click', handleClick);
+    host.addEventListener('touchstart', handleTouchStart);
+    host.addEventListener('keydown', handleKeyDown);
 
     // Cache lines after mount
     setTimeout(() => cacheLines(), 100);
@@ -114,12 +119,15 @@ function VoiceCard({ host, voice, audioSrc, delay }) {
     audioAnalyzer.addEventListener('levels', handleLevels);
 
     return () => {
+      host.removeEventListener('click', handleClick);
+      host.removeEventListener('touchstart', handleTouchStart);
+      host.removeEventListener('keydown', handleKeyDown);
       audioAnalyzer.removeEventListener('levels', handleLevels);
     };
   }, []);
 
-  // Watch for playing state changes
-  useEffect(() => {
+  // Sync host attributes when state changes
+  useSignalEffect(() => {
     if (isPlaying.value) {
       host.setAttribute('playing', '');
       cacheLines(); // Re-cache in case SVG wasn't ready before
@@ -127,16 +135,11 @@ function VoiceCard({ host, voice, audioSrc, delay }) {
       host.removeAttribute('playing');
       resetLines();
     }
-  }, [isPlaying.value]);
+  });
 
-  // Watch for selected state changes
-  useEffect(() => {
-    if (isSelected.value) {
-      host.setAttribute('selected', '');
-    } else {
-      host.removeAttribute('selected');
-    }
-  }, [isSelected.value]);
+  useSignalEffect(() => {
+    host.toggleAttribute('selected', isSelected.value);
+  });
 
   // Expose methods and properties for external control
   host.setPlaying = (playing) => {
@@ -177,23 +180,18 @@ function VoiceCard({ host, voice, audioSrc, delay }) {
     });
   }
 
+  // Note: No wrapper div - :host is styled directly via CSS
+  // The onClick/onTouchStart handlers are set on the host in useEffect
   return html`
     <${ErrorBoundary} name="VoiceCard">
-      <div
-        class="voice-card"
-        onClick=${handleClick}
-        onTouchStart=${handleTouchStart}
-        onKeyDown=${handleKeyDown}
-      >
-        <div class="svg-container" ref=${svgContainerRef}>
-          <slot name="svg"><slot></slot></slot>
-          <div class="ripple"></div>
-        </div>
-        <div class="line"></div>
-        <div class="text">
-          <span class="title"><slot name="title">Voice</slot></span>
-          <span class="subtitle"><slot name="subtitle">description</slot></span>
-        </div>
+      <div class="svg-container" ref=${svgContainerRef}>
+        <slot name="svg"></slot>
+        <div class="ripple"></div>
+      </div>
+      <div class="line"></div>
+      <div class="text">
+        <span class="title"><slot name="title">Voice</slot></span>
+        <span class="subtitle"><slot name="subtitle">description</slot></span>
       </div>
     <//>
   `;
