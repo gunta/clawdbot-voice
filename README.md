@@ -35,6 +35,78 @@
 - **🎨 Beautiful UI** — Elegant animations and WebGPU-powered waveforms
 - **⚡ Zero Dependencies** — Pure vanilla JavaScript, no build step required
 - **🔒 Privacy First** — All processing happens on your device
+- **🔌 Plugin System** — Extend OS1 with skills, agents, and custom UI components
+
+---
+
+## 🧠 Bring Your Own Soul
+
+**OS1 is the Body. Bring your own Soul.**
+
+OS1 provides the **interface** (Face), **memory** (Filesystem), and **capabilities** (Tools). The Soul — your AI agent of choice — plugs into this body through the **Plugin system**.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                           THE SOUL                                  │
+│       Claude Code • Custom Agents • Clawd • Your Agent              │
+├─────────────────────────────────────────────────────────────────────┤
+│                        PLUGIN LAYER                                 │
+│   Skills (SKILL.md) • Agents • Commands • Hooks • UI Components     │
+├─────────────────────────────────────────────────────────────────────┤
+│                      OS1 BODY (THE OS)                              │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐    │
+│  │    Face    │  │   Memory   │  │   Tools    │  │   Voice    │    │
+│  │Voice Cards │  │  AgentFS   │  │ Agent API  │  │ Speech I/O │    │
+│  │ Components │  │SQLite WASM │  │ Navigation │  │ Synthesis  │    │
+│  └────────────┘  └────────────┘  └────────────┘  └────────────┘    │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### What OS1 Provides
+
+| Layer | What It Does |
+|-------|--------------|
+| **Face** | Voice cards, beautiful UI, WebGPU waveforms |
+| **Memory** | AgentFS filesystem (SQLite WASM, offline-first) |
+| **Tools** | Agent Tools API (filesystem, navigation, voice) |
+| **Plugins** | Skills, commands, hooks, and UI components |
+
+### What You Bring
+
+- **Claude Code**, custom agents, or OS1's built-in **Clawd**
+- Your own **plugins** for personalized workflows
+
+### Philosophy
+
+This is [malleable software](https://www.inkandswitch.com/essay/malleable-software/) — you can inspect, modify, and personalize everything. Inspired by:
+
+- [Ink & Switch: Malleable Software](https://www.inkandswitch.com/essay/malleable-software/) — Users should shape their tools
+- [Vercel: Agents with Filesystems](https://vercel.com/blog/how-to-build-agents-with-filesystems-and-bash) — AI agents thrive when grounded in filesystems
+- [Agent Skills Specification](https://agentskills.io/specification) — Portable AI skills format
+
+### Plugin Example
+
+```
+/plugins/hello-world/
+├── .claude-plugin/plugin.json    # Plugin manifest
+├── skills/greet/SKILL.md         # Agent skill definition
+├── commands/say-hello.md         # Voice command
+├── hooks/hooks.json              # Event triggers
+└── components/hello-badge/       # Custom UI component
+    ├── index.js
+    └── styles.css
+```
+
+See [docs/plugins.md](docs/plugins.md) for the full specification.
+
+### Roadmap
+
+- [x] AgentFS filesystem + voice interface
+- [x] Web Components with Shadow DOM
+- [ ] Plugin loader + skill system
+- [ ] Hot-reload UI components
+- [ ] Import plugins from URL/GitHub
+- [ ] Community marketplace
 
 ## 🚀 Deploy
 

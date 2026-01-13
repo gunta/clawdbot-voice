@@ -1,0 +1,71 @@
+/* Wave Form Component Styles */
+
+:host {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--waveform-height, 40px);
+  opacity: 0.3;
+  transition: opacity 0.4s ease;
+}
+
+:host([active]) {
+  opacity: 1 !important;
+  animation: none;
+}
+
+/* Initial fade-in animation (only when not active) */
+:host(:not([active])) {
+  animation: fade-in 1s ease forwards;
+  animation-delay: 0.5s;
+  opacity: 0;
+}
+
+.bar {
+  width: 3px;
+  height: var(--wave-bar-height, 15px);
+  background: var(--color-white, #FFFFFF);
+  border-radius: 2px;
+  transition: height 0.05s ease-out;
+  will-change: height;
+  /* Default idle animation - gentle breathing */
+  animation: wave-idle 2s ease-in-out infinite;
+}
+
+/* Stagger animation for each bar */
+.bar:nth-child(1) { animation-delay: 0s; }
+.bar:nth-child(2) { animation-delay: 0.15s; }
+.bar:nth-child(3) { animation-delay: 0.3s; }
+.bar:nth-child(4) { animation-delay: 0.45s; }
+.bar:nth-child(5) { animation-delay: 0.3s; }
+.bar:nth-child(6) { animation-delay: 0.15s; }
+.bar:nth-child(7) { animation-delay: 0s; }
+
+/* When active (audio playing), JS controls height - disable CSS animation */
+:host([active]) .bar {
+  animation: none;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 0.3; transform: translateY(0); }
+}
+
+/* Idle breathing animation */
+@keyframes wave-idle {
+  0%, 100% { height: 15px; }
+  50% { height: 25px; }
+}
+
+/* Active wave animation (legacy, for reference) */
+@keyframes wave-move {
+  0%, 100% { height: var(--wave-bar-height, 15px); }
+  50% { height: var(--wave-bar-height-active, 35px); }
+}
+
+@media (max-width: 700px) {
+  :host {
+    height: 30px;
+  }
+}

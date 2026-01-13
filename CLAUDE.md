@@ -34,7 +34,7 @@ Native Web Components using Shadow DOM and Declarative Shadow DOM for SSR:
 - **Apps**: `files-app.js`, `coder-app.js`, `commands-app.js`, `settings-app.js`, `image-viewer-app.js`, `clock-modal.js`
 - **Utilities**: `transcription-display.js`, `status-display.js`, `drop-zone.js`, `text-editor.js`
 
-Each component has a corresponding CSS file in `src/components/styles/`.
+Each component is in a folder structure with `index.js` and `styles.css` (e.g., `src/components/voice-card/index.js`).
 
 ### Services (`src/services/`)
 Singleton services providing core functionality:

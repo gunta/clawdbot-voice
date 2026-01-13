@@ -1,0 +1,14 @@
+{
+  "hooks": [
+    {
+      "event": "on-navigate",
+      "config": { "app": "files" },
+      "action": "component:show:hello-badge"
+    },
+    {
+      "event": "on-boot",
+      "config": {},
+      "action": "skill:greet"
+    }
+  ]
+}

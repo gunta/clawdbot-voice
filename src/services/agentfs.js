@@ -42,7 +42,9 @@ const AGENT_ID = 'clawd-os';
 const PATHS = {
   CONFIG: '/settings/config.json',
   USER: '/settings/user.json',
+  PLUGINS_CONFIG: '/settings/plugins.json',
   SETTINGS_DIR: '/settings',
+  PLUGINS_DIR: '/plugins',
   // Default directories (all names must be speakable naturally)
   // Organized by purpose: personal, media, transfers, system
   DIRS: [
@@ -68,6 +70,7 @@ const PATHS = {
     
     // System
     '/settings',        // OS configuration
+    '/plugins',         // User plugins (skills, agents, components)
     '/temporary'        // Scratch/temp files
   ]
 };
@@ -529,6 +532,111 @@ export async function getAgent() {
  */
 export function getPaths() {
   return PATHS;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Plugin Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * List all plugin directories that have a valid manifest
+ * @returns {Promise<string[]>} Array of plugin names
+ */
+export async function listPlugins() {
+  await init();
+  try {
+    const dirs = await readdir(PATHS.PLUGINS_DIR);
+    const validPlugins = [];
+    
+    for (const dir of dirs) {
+      const manifestPath = `${PATHS.PLUGINS_DIR}/${dir}/.claude-plugin/plugin.json`;
+      if (await exists(manifestPath)) {
+        validPlugins.push(dir);
+      }
+    }
+    
+    return validPlugins;
+  } catch (err) {
+    console.error('[AgentFS] listPlugins failed:', err);
+    return [];
+  }
+}
+
+/**
+ * Read a plugin's manifest (plugin.json)
+ * @param {string} pluginName - Plugin directory name
+ * @returns {Promise<Object|null>}
+ */
+export async function readPluginManifest(pluginName) {
+  const manifestPath = `${PATHS.PLUGINS_DIR}/${pluginName}/.claude-plugin/plugin.json`;
+  return readJSON(manifestPath);
+}
+
+/**
+ * Get plugin configuration (enabled/disabled list)
+ * @returns {Promise<{ enabled?: string[], disabled?: string[] }>}
+ */
+export async function getPluginsConfig() {
+  const config = await readJSON(PATHS.PLUGINS_CONFIG);
+  return config || {};
+}
+
+/**
+ * Update plugin configuration
+ * @param {Object} updates - Config updates
+ * @returns {Promise<Object>}
+ */
+export async function updatePluginsConfig(updates) {
+  const config = await getPluginsConfig();
+  const merged = { ...config, ...updates };
+  await writeJSON(PATHS.PLUGINS_CONFIG, merged);
+  return merged;
+}
+
+/**
+ * Create a new plugin directory structure
+ * @param {string} pluginName - Plugin name
+ * @param {Object} manifest - Plugin manifest
+ * @returns {Promise<void>}
+ */
+export async function createPlugin(pluginName, manifest) {
+  await init();
+  const basePath = `${PATHS.PLUGINS_DIR}/${pluginName}`;
+  
+  // Create directory structure
+  await agent.fs.mkdir(basePath).catch(() => {});
+  await agent.fs.mkdir(`${basePath}/.claude-plugin`).catch(() => {});
+  await agent.fs.mkdir(`${basePath}/skills`).catch(() => {});
+  await agent.fs.mkdir(`${basePath}/commands`).catch(() => {});
+  await agent.fs.mkdir(`${basePath}/hooks`).catch(() => {});
+  await agent.fs.mkdir(`${basePath}/components`).catch(() => {});
+  
+  // Write manifest
+  await writeJSON(`${basePath}/.claude-plugin/plugin.json`, {
+    name: pluginName,
+    version: '1.0.0',
+    ...manifest,
+  });
+  
+  // Write empty hooks.json
+  await writeJSON(`${basePath}/hooks/hooks.json`, { hooks: [] });
+  
+  console.log('[AgentFS] Created plugin:', pluginName);
+}
+
+/**
+ * Create directory (wrapper for agent.fs.mkdir)
+ * @param {string} path - Directory path
+ */
+export async function mkdir(path) {
+  await init();
+  try {
+    await agent.fs.mkdir(path);
+  } catch (err) {
+    if (err.code !== 'EEXIST') {
+      throw err;
+    }
+  }
 }
 
 // Export default config and paths for reference

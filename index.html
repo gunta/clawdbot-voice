@@ -61,7 +61,7 @@
     <!-- OS Header with Declarative Shadow DOM -->
     <os-header badge="OS1">
       <template shadowrootmode="open">
-        <link rel="stylesheet" href="src/components/styles/os-header.css">
+        <link rel="stylesheet" href="src/components/os-header/styles.css">
         <div class="badge">OS1</div>
         <time class="clock">12:00</time>
       </template>
@@ -76,7 +76,7 @@
         <!-- Her - The Assistant -->
         <voice-card id="assistantCard" voice="her" audio-src="audio/assistant.mp3" delay="1">
           <template shadowrootmode="open">
-            <link rel="stylesheet" href="src/components/styles/voice-card.css">
+            <link rel="stylesheet" href="src/components/voice-card/styles.css">
             <div class="svg-container">
               <slot name="svg"></slot>
               <div class="ripple"></div>
@@ -105,7 +105,7 @@
         <!-- Clawd - The Lobster -->
         <voice-card id="lobsterCard" voice="clawd" audio-src="audio/lobster.mp3" delay="2">
           <template shadowrootmode="open">
-            <link rel="stylesheet" href="src/components/styles/voice-card.css">
+            <link rel="stylesheet" href="src/components/voice-card/styles.css">
             <div class="svg-container">
               <slot name="svg"></slot>
               <div class="ripple"></div>
@@ -141,7 +141,7 @@
       <!-- Waveform -->
       <wave-form id="waveform" bars="7">
         <template shadowrootmode="open">
-          <link rel="stylesheet" href="src/components/styles/wave-form.css">
+          <link rel="stylesheet" href="src/components/wave-form/styles.css">
           <div class="bar"></div>
           <div class="bar"></div>
           <div class="bar"></div>
@@ -158,7 +158,7 @@
       <!-- Transcription -->
       <transcription-display id="transcription">
         <template shadowrootmode="open">
-          <link rel="stylesheet" href="src/components/styles/transcription-display.css">
+          <link rel="stylesheet" href="src/components/transcription-display/styles.css">
           <span class="text"><slot></slot></span>
         </template>
       </transcription-display>
@@ -166,7 +166,7 @@
       <!-- Speak Button -->
       <speak-button id="speakBtn">
         <template shadowrootmode="open">
-          <link rel="stylesheet" href="src/components/styles/speak-button.css">
+          <link rel="stylesheet" href="src/components/speak-button/styles.css">
           <button type="button">
             <span class="text"><slot>tap to speak</slot></span>
             <div class="ripple"></div>
@@ -178,7 +178,7 @@
       <!-- Status -->
       <status-display id="status">
         <template shadowrootmode="open">
-          <link rel="stylesheet" href="src/components/styles/status-display.css">
+          <link rel="stylesheet" href="src/components/status-display/styles.css">
           <span class="text"><slot>ready</slot></span>
         </template>
         ready
@@ -188,7 +188,7 @@
     <!-- Footer -->
     <app-footer class="app-footer">
       <template shadowrootmode="open">
-        <link rel="stylesheet" href="src/components/styles/app-footer.css">
+        <link rel="stylesheet" href="src/components/app-footer/styles.css">
         <a class="title" href="https://clawdbot.com/" target="_blank" rel="noopener">
           <slot name="title">Clawd</slot>
         </a>
@@ -207,7 +207,7 @@
   <files-app id="filesApp">
     <template shadowrootmode="open">
       <style>:host{position:fixed;inset:0;opacity:0;visibility:hidden}</style>
-      <link rel="stylesheet" href="src/components/styles/files-app.css">
+      <link rel="stylesheet" href="src/components/files-app/styles.css">
       
       <div class="header">
         <div class="header-left">
@@ -283,7 +283,7 @@
   <commands-app id="commandsApp">
     <template shadowrootmode="open">
       <style>:host{position:fixed;inset:0;opacity:0;visibility:hidden}</style>
-      <link rel="stylesheet" href="src/components/styles/commands-app.css">
+      <link rel="stylesheet" href="src/components/commands-app/styles.css">
       
       <div class="header">
         <div class="header-left">
@@ -326,7 +326,7 @@
   <launchpad-view id="launchpad">
     <template shadowrootmode="open">
       <style>:host{position:fixed;inset:0;opacity:0;visibility:hidden}</style>
-      <link rel="stylesheet" href="src/components/styles/launchpad-view.css">
+      <link rel="stylesheet" href="src/components/launchpad-view/styles.css">
 
       <div class="header">
         <span class="title">apps</span>
@@ -456,7 +456,7 @@
   <coder-app id="coderApp">
     <template shadowrootmode="open">
       <style>:host{position:fixed;inset:0;opacity:0;visibility:hidden}</style>
-      <link rel="stylesheet" href="src/components/styles/coder-app.css">
+      <link rel="stylesheet" href="src/components/coder-app/styles.css">
       
       <div class="header">
         <div class="header-left">
@@ -513,7 +513,7 @@
   <image-viewer-app id="imageViewerApp">
     <template shadowrootmode="open">
       <style>:host{position:fixed;inset:0;opacity:0;visibility:hidden}</style>
-      <link rel="stylesheet" href="src/components/styles/image-viewer-app.css">
+      <link rel="stylesheet" href="src/components/image-viewer-app/styles.css">
       
       <div class="header">
         <div class="header-left">
@@ -584,7 +584,7 @@
   <clock-modal id="clockModal">
     <template shadowrootmode="open">
       <style>:host{position:fixed;inset:0;opacity:0;visibility:hidden}</style>
-      <link rel="stylesheet" href="src/components/styles/clock-modal.css">
+      <link rel="stylesheet" href="src/components/clock-modal/styles.css">
       
       <button class="close-btn" type="button" aria-label="Close clock">
         <svg viewBox="0 0 24 24" fill="none">

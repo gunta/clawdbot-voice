@@ -1,0 +1,14 @@
+{
+  "name": "hello-world",
+  "version": "1.0.0",
+  "description": "A simple greeting plugin demonstrating all OS1 plugin features",
+  "author": {
+    "name": "OS1 Team"
+  },
+  "license": "MIT",
+  "keywords": ["hello", "greeting", "demo"],
+  "skills": "./skills",
+  "commands": "./commands",
+  "hooks": "./hooks/hooks.json",
+  "components": "./components"
+}

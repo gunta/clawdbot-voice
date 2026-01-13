@@ -15,7 +15,8 @@ import 'preact/debug';
 import { navigationService } from './services/navigation-service.js';
 import { initNavigationSignals } from './services/navigation-signals.js';
 import { componentGate } from './services/component-gate-service.js';
-import { isReturningUser, speechSynthesis, wakeLockService, chimes } from './services/index.js';
+import { isReturningUser, speechSynthesis, speechRecognition, wakeLockService, chimes } from './services/index.js';
+import { pluginLoader, hooksRegistry, initVoiceServices } from './services/index.js';
 import { voiceController, speechController, keyboardController } from './controllers/index.js';
 
 // Import all Preact shadow components
@@ -53,9 +54,48 @@ class ClawdOS1App {
     this.#setupServiceWorker();
     this.#initWakeLock();
     this.#initChimes();
+    
+    // Initialize plugin system
+    await this.#initPlugins();
+    
     this.#greetReturningUser();
 
     console.log('[CLAWD] OS1 initialized with Preact shadow components');
+  }
+
+  /**
+   * Initialize the plugin system
+   * @returns {Promise<void>}
+   */
+  async #initPlugins() {
+    // Check for safe mode (URL param or localStorage flag)
+    const urlParams = new URLSearchParams(window.location.search);
+    const safeMode = urlParams.has('safeMode') || 
+                     localStorage.getItem('os1:safeMode') === 'true';
+    
+    if (safeMode) {
+      console.log('[CLAWD] Safe mode - plugins disabled');
+      return;
+    }
+    
+    try {
+      // Initialize voice services for Agent Tools API
+      initVoiceServices(speechSynthesis, speechRecognition);
+      
+      // Initialize plugin loader
+      await pluginLoader.init();
+      
+      // Initialize hooks registry (wires up event listeners)
+      hooksRegistry.init();
+      
+      // Expose plugins for debugging
+      this.plugins = pluginLoader;
+      
+      console.log(`[CLAWD] Plugins initialized: ${pluginLoader.listPlugins().length} loaded`);
+    } catch (err) {
+      console.error('[CLAWD] Plugin init failed:', err);
+      // Don't break boot on plugin failure
+    }
   }
 
   /**

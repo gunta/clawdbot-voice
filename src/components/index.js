@@ -4,36 +4,39 @@
  */
 
 // Core UI Components
-import './status-display.js';
-import './speak-button.js';
-import './wave-form.js';
-import './gpu-waveform.js';
-import './transcription-display.js';
+import './status-display/index.js';
+import './speak-button/index.js';
+import './wave-form/index.js';
+import './gpu-waveform/index.js';
+import './transcription-display/index.js';
 
 // Card Components
-import './voice-card.js';
+import './voice-card/index.js';
 
 // App Components
-import './launchpad-view.js';
-import './settings-app.js';
-import './files-app.js';
-import './commands-app.js';
-import './coder-app.js';
-import './image-viewer-app.js';
-import './connections-app.js';
+import './launchpad-view/index.js';
+import './settings-app/index.js';
+import './files-app/index.js';
+import './commands-app/index.js';
+import './coder-app/index.js';
+import './image-viewer-app/index.js';
+import './connections-app/index.js';
 
 // Modal & Overlay Components
-import './clock-modal.js';
-import './app-header.js';
-import './app-footer.js';
+import './clock-modal/index.js';
+import './app-header/index.js';
+import './app-footer/index.js';
 
 // Main Shell
-import './clawd-os1.js';
+import './clawd-os1/index.js';
 
 // Legacy components (if any still needed during transition)
-import './os-header.js';
-import './text-editor.js';
-import './drop-zone.js';
-import './handwrite-text.js';
+import './os-header/index.js';
+import './text-editor/index.js';
+import './drop-zone/index.js';
+import './handwrite-text/index.js';
+
+// Plugin System
+import './plugin-slot/index.js';
 
 console.log('[CLAWD] All components registered');
